@@ -232,6 +232,8 @@
     init();
     
     async function init() {
+        console.log("Initializing with session:", sessionId, "token:", token);
+        
         if (!sessionId || !token) {
             showError("Invalid QR code. Missing session or token.");
             return;
@@ -239,14 +241,20 @@
         
         try {
             // Verify the scan URL
-            const res = await fetch(`${API}/attendance/scan?session=${sessionId}&token=${token}`);
+            const scanUrl = `${API}/attendance/scan?session=${sessionId}&token=${token}`;
+            console.log("Fetching:", scanUrl);
+            
+            const res = await fetch(scanUrl);
+            console.log("Response status:", res.status);
+            
             const data = await res.json();
+            console.log("Response data:", data);
             
             if (!res.ok) {
                 if (data.expired) {
                     showExpired();
                 } else {
-                    showError(data.message || "Failed to verify QR code");
+                    showError(data.message || "Failed to verify QR code (Status: " + res.status + ")");
                 }
                 return;
             }
@@ -264,10 +272,11 @@
             }
             
         } catch (err) {
-            console.error(err);
-            showError("Network error. Please check your connection.");
+            console.error("Error in init:", err);
+            showError("Network error: " + err.message + ". Please check your connection.");
         }
     }
+
     
     async function markAttendance() {
         try {
