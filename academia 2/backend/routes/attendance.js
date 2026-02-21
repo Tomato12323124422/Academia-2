@@ -152,7 +152,7 @@ router.get('/sessions/:id/qr', authMiddleware, async (req, res) => {
         // Generate dynamic QR code with rotating token
         // Point to frontend page where students will mark attendance
         const token = generateToken();
-        const qrData = `${SERVER_URL}/frontend/attendance-scan-result.html?session=${req.params.id}&token=${token}`;
+        const qrData = `${SERVER_URL}/attendance-scan-result.html?session=${req.params.id}&token=${token}`;
         const qrCodeDataUrl = await QRCode.toDataURL(qrData);
 
 

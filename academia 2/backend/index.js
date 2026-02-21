@@ -44,15 +44,21 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
+// Serve attendance-scan-result.html directly
+app.get('/attendance-scan-result.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/attendance-scan-result.html'));
+});
+
+// Serve attendance-scan.html directly
+app.get('/attendance-scan.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/attendance-scan.html'));
+});
+
 // Catch-all handler: serve index.html for any non-API routes (client-side routing)
 app.use((req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 
-// Debug: Log PORT configuration
-console.log('PORT from env:', process.env.PORT);
-console.log('Using PORT:', process.env.PORT || 5000);
-
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
