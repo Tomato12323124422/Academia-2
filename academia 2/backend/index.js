@@ -35,9 +35,10 @@ app.get('/', (req, res) => {
 });
 
 // Catch-all handler: serve index.html for any non-API routes (client-side routing)
-app.get('*', (req, res) => {
+app.use((req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
