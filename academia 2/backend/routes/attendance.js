@@ -549,11 +549,14 @@ router.post('/scan/mark', async (req, res) => {
             });
         }
         
+        // Convert session_id to integer for database query
+        const sessionIdInt = parseInt(session_id, 10);
+        
         // Check if session exists and is active
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
             .select('*')
-            .eq('id', session_id)
+            .eq('id', sessionIdInt)
             .eq('status', 'active');
         
         if (sessionError || !session || session.length === 0) {
@@ -566,7 +569,7 @@ router.post('/scan/mark', async (req, res) => {
             const { data: existing } = await supabase
                 .from('attendance')
                 .select('*')
-                .eq('session_id', session_id)
+                .eq('session_id', sessionIdInt)
                 .eq('student_id', userId);
             
             if (existing && existing.length > 0) {
@@ -577,7 +580,7 @@ router.post('/scan/mark', async (req, res) => {
             const { data, error } = await supabase
                 .from('attendance')
                 .insert([{
-                    session_id,
+                    session_id: sessionIdInt,
                     student_id: userId,
                     status: 'present',
                     marked_at: new Date().toISOString()
