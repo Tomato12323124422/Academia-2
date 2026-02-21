@@ -6,6 +6,8 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const coursesRoutes = require('./routes/courses');
 const attendanceRoutes = require('./routes/attendance');
+const assignmentsRoutes = require('./routes/assignments');
+const gradesRoutes = require('./routes/grades');
 
 const app = express();
 
@@ -24,6 +26,8 @@ app.get('/index', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', coursesRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/assignments', assignmentsRoutes);
+app.use('/api/grades', gradesRoutes);
 
 app.get('/', (req, res) => {
 

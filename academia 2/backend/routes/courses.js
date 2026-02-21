@@ -108,6 +108,53 @@ router.get('/my-courses', authMiddleware, async (req, res) => {
     }
 });
 
+// GET STUDENT'S ENROLLED COURSES
+router.get('/enrolled', authMiddleware, async (req, res) => {
+    try {
+        // Get student's enrollments
+        const { data: enrollments, error: enrollError } = await supabase
+            .from('enrollments')
+            .select('course_id, enrolled_at')
+            .eq('student_id', req.user.id);
+
+        if (enrollError) {
+            return res.status(500).json({ message: enrollError.message });
+        }
+
+        const courseIds = enrollments.map(e => e.course_id);
+
+        if (courseIds.length === 0) {
+            return res.json({ courses: [] });
+        }
+
+        // Get course details with teacher info
+        const { data: courses, error } = await supabase
+            .from('courses')
+            .select('*')
+            .in('id', courseIds)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        // Map enrollments to courses
+        const coursesWithEnrollment = courses.map(course => {
+            const enrollment = enrollments.find(e => e.course_id === course.id);
+            return {
+                ...course,
+                enrolled_at: enrollment?.enrolled_at
+            };
+        });
+
+        res.json({ courses: coursesWithEnrollment });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET SPECIFIC COURSE
 router.get('/:id', async (req, res) => {
     try {
