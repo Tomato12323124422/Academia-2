@@ -389,6 +389,103 @@ router.get('/sessions/:id/attendance', authMiddleware, async (req, res) => {
     }
 });
 
+// GET ALL ACTIVE SESSIONS (for students to see live classes)
+router.get('/active-sessions', authMiddleware, async (req, res) => {
+    try {
+        // Get all active sessions with course info
+        const { data: sessions, error } = await supabase
+            .from('sessions')
+            .select(`
+                *,
+                course:courses(id, title, category)
+            `)
+            .eq('status', 'active')
+            .order('date', { ascending: false });
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        res.json({ sessions: sessions || [] });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET COURSE ATTENDANCE ANALYTICS
+router.get('/courses/:id/analytics', authMiddleware, async (req, res) => {
+    try {
+        const courseId = req.params.id;
+
+        // Verify teacher owns the course
+        if (req.user.role === 'teacher') {
+            const { data: course, error: courseError } = await supabase
+                .from('courses')
+                .select('*')
+                .eq('id', courseId)
+                .eq('teacher_id', req.user.id);
+
+            if (courseError || !course || course.length === 0) {
+                return res.status(403).json({ message: 'Not authorized' });
+            }
+        }
+
+        // Get all sessions for this course
+        const { data: sessions, sessionsError } = await supabase
+            .from('sessions')
+            .select('id')
+            .eq('course_id', courseId);
+
+        if (sessionsError) {
+            return res.status(500).json({ message: sessionsError.message });
+        }
+
+        const sessionIds = sessions?.map(s => s.id) || [];
+        const totalSessions = sessionIds.length;
+
+        // Get total enrolled students
+        const { count: totalStudents } = await supabase
+            .from('enrollments')
+            .select('*', { count: 'exact', head: true })
+            .eq('course_id', courseId);
+
+        // Get attendance records
+        let presentCount = 0;
+        let totalAttendance = 0;
+
+        if (sessionIds.length > 0) {
+            const { data: attendance, attendError } = await supabase
+                .from('attendance')
+                .select('status')
+                .in('session_id', sessionIds);
+
+            if (!attendError && attendance) {
+                totalAttendance = attendance.length;
+                presentCount = attendance.filter(a => a.status === 'present').length;
+            }
+        }
+
+        const attendanceRate = totalAttendance > 0 ? Math.round((presentCount / totalAttendance) * 100) : 0;
+
+        res.json({
+            analytics: {
+                total_sessions: totalSessions,
+                total_students: totalStudents || 0,
+                total_attendance_records: totalAttendance,
+                present_count: presentCount,
+                absent_count: totalAttendance - presentCount,
+                attendance_rate: attendanceRate
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET COURSE SESSIONS
 router.get('/courses/:id/sessions', authMiddleware, async (req, res) => {
     try {
@@ -478,7 +575,21 @@ router.get('/my-attendance', authMiddleware, async (req, res) => {
             return res.status(500).json({ message: error.message });
         }
 
-        res.json({ attendance: attendance || [] });
+        // Calculate summary
+        const total = attendance?.length || 0;
+        const present = attendance?.filter(a => a.status === 'present').length || 0;
+        const absent = total - present;
+        const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+
+        res.json({ 
+            attendance: attendance || [],
+            summary: {
+                total,
+                present,
+                absent,
+                rate
+            }
+        });
 
     } catch (err) {
         console.error(err);

@@ -60,18 +60,101 @@
         </section>
 
 
-        <!-- LIVE CLASSES AREA -->
-        <section class="panel">
-            <h3>Live Virtual Classes</h3>
-            <div id="zoomClasses"></div>
+        <!-- ========== STUDENT DASHBOARD PANELS ========== -->
+        
+        <!-- Assignment Deadlines - Student -->
+        <section class="panel" id="studentDeadlinesPanel" style="display: none;">
+            <h3>📝 Assignment Deadlines</h3>
+            <div id="assignmentsList">
+                <p>Loading assignments...</p>
+            </div>
         </section>
 
+        <!-- Attendance History - Student -->
+        <section class="panel" id="studentAttendanceHistoryPanel" style="display: none;">
+            <h3>📋 Attendance History</h3>
+            <div id="attendanceHistory">
+                <p>Loading attendance history...</p>
+            </div>
+        </section>
+
+        <!-- Upcoming Live Classes - Student -->
+        <section class="panel" id="studentLiveClassesPanel" style="display: none;">
+            <h3>📹 Upcoming Live Classes</h3>
+            <div id="studentLiveClasses">
+                <p>Loading live classes...</p>
+            </div>
+        </section>
+
+        <!-- Student Leaderboard -->
+        <section class="panel" id="studentLeaderboardPanel" style="display: none;">
+            <h3>🏆 Leaderboard</h3>
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Student</th>
+                        <th>XP</th>
+                        <th>Level</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <tr><td colspan="4">Loading leaderboard...</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- My Courses - Student -->
+        <section class="panel" id="studentCoursesPanel" style="display: none;">
+            <h3>📚 My Courses</h3>
+            <div id="studentCoursesList" class="courses-grid">
+                <p>Loading courses...</p>
+            </div>
+        </section>
 
         <!-- QR ATTENDANCE - STUDENT -->
         <section class="panel" id="studentAttendancePanel" style="display: none;">
-            <h3>Scan QR for Attendance</h3>
+            <h3>📱 Scan QR for Attendance</h3>
             <p>Use your phone to scan the teacher's QR code</p>
             <button class="primary-btn" onclick="openAttendanceScanner()">Open Scanner</button>
+        </section>
+
+
+        <!-- ========== INSTRUCTOR DASHBOARD PANELS ========== -->
+
+        <!-- Attendance Analytics - Instructor -->
+        <section class="panel" id="instructorAnalyticsPanel" style="display: none;">
+            <h3>📊 Attendance Analytics</h3>
+            <div class="analytics-grid" id="attendanceAnalytics">
+                <p>Loading analytics...</p>
+            </div>
+        </section>
+
+        <!-- Live Class Scheduling - Instructor -->
+        <section class="panel" id="instructorLiveClassesPanel" style="display: none;">
+            <h3>📹 Live Class Scheduling</h3>
+            <div id="instructorLiveClasses">
+                <p>Loading live classes...</p>
+            </div>
+        </section>
+
+        <!-- Student Leaderboard - Instructor -->
+        <section class="panel" id="instructorLeaderboardPanel" style="display: none;">
+            <h3>🏆 Student Leaderboard</h3>
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Student</th>
+                        <th>XP</th>
+                        <th>Level</th>
+                        <th>Badges</th>
+                    </tr>
+                </thead>
+                <tbody id="instructorLeaderboardBody">
+                    <tr><td colspan="5">Loading leaderboard...</td></tr>
+                </tbody>
+            </table>
         </section>
 
         <!-- TEACHER SESSION MANAGEMENT -->
@@ -148,6 +231,41 @@
             <h3>Course Sessions</h3>
             <div id="sessionsList">
                 <p>Select a course to view sessions.</p>
+            </div>
+        </section>
+
+
+        <!-- ========== GUARDIAN/PARENT DASHBOARD PANELS ========== -->
+
+        <!-- Children List - Guardian -->
+        <section class="panel" id="guardianChildrenPanel" style="display: none;">
+            <h3>👨‍👩‍👧 My Children</h3>
+            <div id="childrenList">
+                <p>Loading children...</p>
+            </div>
+        </section>
+
+        <!-- Child Grades - Guardian -->
+        <section class="panel" id="guardianGradesPanel" style="display: none;">
+            <h3>📊 Grades</h3>
+            <div id="guardianGrades">
+                <p>Select a child to view grades...</p>
+            </div>
+        </section>
+
+        <!-- Child Attendance - Guardian -->
+        <section class="panel" id="guardianAttendancePanel" style="display: none;">
+            <h3>📋 Attendance Summary</h3>
+            <div id="guardianAttendance">
+                <p>Select a child to view attendance...</p>
+            </div>
+        </section>
+
+        <!-- Child Achievements - Guardian -->
+        <section class="panel" id="guardianAchievementsPanel" style="display: none;">
+            <h3>🏆 Student Achievements</h3>
+            <div id="guardianAchievements">
+                <p>Select a child to view achievements...</p>
             </div>
         </section>
 

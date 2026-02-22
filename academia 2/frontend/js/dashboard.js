@@ -3,7 +3,7 @@ const API = "https://academia-2-xgdr.onrender.com/api";
 const user = JSON.parse(localStorage.getItem("user"));
 const token = localStorage.getItem("token");
 
-if(!user){
+if (!user) {
     window.location.href = "login.html";
 }
 
@@ -14,50 +14,805 @@ const menu = document.getElementById("menu");
 
 /* ===== ROLE BASED MENU ===== */
 
-if(user.role === "student"){
+if (user.role === "student") {
     menu.innerHTML = `
-        <li onclick="showMyCourses()">My Courses</li>
-        <li>Assignments</li>
-        <li onclick="showStudentAttendance()">QR Attendance</li>
-        <li>Badges</li>
+        <li onclick="showStudentDashboard()">📊 Dashboard</li>
+        <li onclick="showStudentCourses()">📚 My Courses</li>
+        <li onclick="showStudentDeadlines()">📝 Assignments</li>
+        <li onclick="showStudentAttendance()">📋 Attendance</li>
+        <li onclick="showStudentLiveClasses()">📹 Live Classes</li>
+        <li onclick="showStudentLeaderboard()">🏆 Leaderboard</li>
     `;
-    // Show student attendance panel
-    document.getElementById("studentAttendancePanel").style.display = "block";
+    // Load student dashboard data
+    loadStudentDashboard();
 }
 
-if(user.role === "teacher"){
+if (user.role === "teacher") {
     menu.innerHTML = `
-        <li onclick="showCreateCourseForm()">Create Course</li>
-        <li onclick="showMyCourses()">My Courses</li>
-        <li>Live Classes</li>
-        <li onclick="showTeacherSessionPanel()">Attendance QR</li>
-        <li onclick="window.location.href='students.html'">Students</li>
+        <li onclick="showInstructorDashboard()">📊 Dashboard</li>
+        <li onclick="showCreateCourseForm()">➕ Create Course</li>
+        <li onclick="showMyCourses()">📚 My Courses</li>
+        <li onclick="showInstructorLiveClasses()">📹 Live Classes</li>
+        <li onclick="showInstructorAnalytics()">📈 Analytics</li>
+        <li onclick="showInstructorLeaderboard()">🏆 Leaderboard</li>
+        <li onclick="showTeacherSessionPanel()">📱 Attendance QR</li>
+        <li onclick="window.location.href='students.html'">👨‍🎓 Students</li>
     `;
+    // Load instructor dashboard data
+    loadInstructorDashboard();
+}
 
-    // Show teacher session panel
+if (user.role === "parent") {
+    menu.innerHTML = `
+        <li onclick="showGuardianDashboard()">📊 Dashboard</li>
+        <li onclick="showGuardianChildren()">👨‍👩‍👧 My Children</li>
+    `;
+    // Load guardian dashboard data
+    loadGuardianDashboard();
+}
+
+/* ===== STUDENT DASHBOARD FUNCTIONS ===== */
+
+async function loadStudentDashboard() {
+    // Hide all panels first
+    hideAllPanels();
+    
+    // Show student panels
+    document.getElementById("studentDeadlinesPanel").style.display = "block";
+    document.getElementById("studentAttendanceHistoryPanel").style.display = "block";
+    document.getElementById("studentLiveClassesPanel").style.display = "block";
+    document.getElementById("studentLeaderboardPanel").style.display = "block";
+    document.getElementById("studentCoursesPanel").style.display = "block";
+    document.getElementById("studentAttendancePanel").style.display = "block";
+    
+    // Load all student data
+    await Promise.all([
+        loadStudentStats(),
+        loadStudentCoursesList(),
+        loadStudentDeadlines(),
+        loadStudentAttendanceHistory(),
+        loadStudentLiveClasses(),
+        loadStudentLeaderboard()
+    ]);
+}
+
+async function loadStudentStats() {
+    try {
+        // Load gamification stats
+        const statsRes = await fetch(`${API}/gamification/stats`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (statsRes.ok) {
+            const statsData = await statsRes.json();
+            document.getElementById("xp").innerText = statsData.stats?.xp || 0;
+            document.getElementById("badges").innerText = statsData.stats?.badges_earned || 0;
+        }
+        
+        // Load courses count
+        const coursesRes = await fetch(`${API}/courses/enrolled`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (coursesRes.ok) {
+            const coursesData = await coursesRes.json();
+            document.getElementById("courseCount").innerText = coursesData.courses?.length || 0;
+        }
+        
+        // Load attendance
+        const attendRes = await fetch(`${API}/attendance/my-attendance`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (attendRes.ok) {
+            const attendData = await attendRes.json();
+            const rate = attendData.summary?.rate || 0;
+            document.getElementById("attendance").innerText = rate + "%";
+        }
+        
+    } catch (err) {
+        console.error("Error loading student stats:", err);
+    }
+}
+
+async function loadStudentCoursesList() {
+    try {
+        const res = await fetch(`${API}/courses/enrolled`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("studentCoursesList");
+        
+        if (res.ok && data.courses && data.courses.length > 0) {
+            container.innerHTML = data.courses.map(course => `
+                <div class="course-card">
+                    <h4>${course.title}</h4>
+                    <p>${course.description || 'No description'}</p>
+                    <span class="category-tag">${course.category || 'General'}</span>
+                    ${course.duration ? `<span class="duration-tag">${course.duration}</span>` : ''}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = "<p>No courses enrolled yet.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading courses:", err);
+        document.getElementById("studentCoursesList").innerHTML = "<p>Error loading courses.</p>";
+    }
+}
+
+async function loadStudentDeadlines() {
+    try {
+        const res = await fetch(`${API}/assignments/my-assignments`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("assignmentsList");
+        
+        if (res.ok && data.assignments && data.assignments.length > 0) {
+            // Sort by due date and show upcoming
+            const sorted = data.assignments
+                .filter(a => a.status !== 'submitted')
+                .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
+                .slice(0, 10);
+            
+            if (sorted.length > 0) {
+                container.innerHTML = sorted.map(assignment => {
+                    const dueDate = new Date(assignment.due_date);
+                    const now = new Date();
+                    const daysLeft = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+                    
+                    let urgencyClass = '';
+                    if (daysLeft < 0) urgencyClass = 'urgent';
+                    else if (daysLeft <= 2) urgencyClass = 'soon';
+                    
+                    return `
+                        <div class="deadline-item ${urgencyClass}">
+                            <div class="deadline-info">
+                                <h4>${assignment.title}</h4>
+                                <p>${assignment.course?.title || 'Unknown Course'}</p>
+                            </div>
+                            <div class="deadline-date">
+                                <span class="days-left">${daysLeft < 0 ? 'OVERDUE' : daysLeft + ' days left'}</span>
+                                <small>${dueDate.toLocaleDateString()}</small>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                container.innerHTML = "<p>No upcoming assignments!</p>";
+            }
+        } else {
+            container.innerHTML = "<p>No assignments yet.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading assignments:", err);
+        document.getElementById("assignmentsList").innerHTML = "<p>Error loading assignments.</p>";
+    }
+}
+
+async function loadStudentAttendanceHistory() {
+    try {
+        const res = await fetch(`${API}/attendance/my-attendance`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("attendanceHistory");
+        
+        if (res.ok && data.attendance && data.attendance.length > 0) {
+            const recent = data.attendance.slice(0, 10);
+            container.innerHTML = recent.map(record => `
+                <div class="deadline-item">
+                    <div class="deadline-info">
+                        <h4>${record.session?.course?.title || 'Unknown Course'}</h4>
+                        <p>${new Date(record.marked_at).toLocaleDateString()}</p>
+                    </div>
+                    <div class="deadline-date">
+                        <span class="days-left" style="color: ${record.status === 'present' ? '#28a745' : '#dc3545'}">
+                            ${record.status === 'present' ? '✓ Present' : '✗ Absent'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = "<p>No attendance records yet.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading attendance:", err);
+        document.getElementById("attendanceHistory").innerHTML = "<p>Error loading attendance.</p>";
+    }
+}
+
+async function loadStudentLiveClasses() {
+    try {
+        const res = await fetch(`${API}/attendance/active-sessions`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("studentLiveClasses");
+        
+        if (res.ok && data.sessions && data.sessions.length > 0) {
+            container.innerHTML = data.sessions.slice(0, 5).map(session => `
+                <div class="live-class-item live-now">
+                    <div class="live-class-info">
+                        <h4>${session.course?.title || 'Unknown Course'}</h4>
+                        <p>Started: ${new Date(session.date).toLocaleTimeString()}</p>
+                    </div>
+                    <div>
+                        <span class="live-badge">LIVE NOW</span>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = "<p>No live classes at the moment.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading live classes:", err);
+        document.getElementById("studentLiveClasses").innerHTML = "<p>Error loading live classes.</p>";
+    }
+}
+
+async function loadStudentLeaderboard() {
+    try {
+        const res = await fetch(`${API}/gamification/leaderboard`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("leaderboardBody");
+        
+        if (res.ok && data.leaderboard && data.leaderboard.length > 0) {
+            container.innerHTML = data.leaderboard.slice(0, 10).map((entry, index) => {
+                const rankClass = index === 0 ? 'top-1' : index === 1 ? 'top-2' : index === 2 ? 'top-3' : '';
+                const level = Math.floor(Math.sqrt(entry.xp / 100)) + 1;
+                return `
+                    <tr class="${rankClass}">
+                        <td>${index + 1}</td>
+                        <td>${entry.user?.full_name || 'Unknown'}</td>
+                        <td>${entry.xp}</td>
+                        <td>${level}</td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = "<tr><td colspan='4'>No leaderboard data yet.</td></tr>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading leaderboard:", err);
+        document.getElementById("leaderboardBody").innerHTML = "<tr><td colspan='4'>Error loading leaderboard.</td></tr>";
+    }
+}
+
+function showStudentDashboard() {
+    loadStudentDashboard();
+}
+
+function showStudentCourses() {
+    hideAllPanels();
+    document.getElementById("studentCoursesPanel").style.display = "block";
+    loadStudentCoursesList();
+}
+
+function showStudentDeadlines() {
+    hideAllPanels();
+    document.getElementById("studentDeadlinesPanel").style.display = "block";
+    loadStudentDeadlines();
+}
+
+function showStudentAttendance() {
+    hideAllPanels();
+    document.getElementById("studentAttendanceHistoryPanel").style.display = "block";
+    loadStudentAttendanceHistory();
+}
+
+function showStudentLiveClasses() {
+    hideAllPanels();
+    document.getElementById("studentLiveClassesPanel").style.display = "block";
+    loadStudentLiveClasses();
+}
+
+function showStudentLeaderboard() {
+    hideAllPanels();
+    document.getElementById("studentLeaderboardPanel").style.display = "block";
+    loadStudentLeaderboard();
+}
+
+/* ===== INSTRUCTOR DASHBOARD FUNCTIONS ===== */
+
+async function loadInstructorDashboard() {
+    // Hide all panels first
+    hideAllPanels();
+    
+    // Show instructor panels
+    document.getElementById("instructorAnalyticsPanel").style.display = "block";
+    document.getElementById("instructorLiveClassesPanel").style.display = "block";
+    document.getElementById("instructorLeaderboardPanel").style.display = "block";
     document.getElementById("teacherSessionPanel").style.display = "block";
     document.getElementById("attendanceListPanel").style.display = "block";
-    // Load teacher's courses on page load
-    loadMyCourses();
-    checkActiveSession();
+    document.getElementById("myCoursesPanel").style.display = "block";
+    
+    // Load all instructor data
+    await Promise.all([
+        loadInstructorStats(),
+        loadMyCourses(),
+        loadInstructorAnalytics(),
+        loadInstructorLiveClasses(),
+        loadInstructorLeaderboard(),
+        checkActiveSession()
+    ]);
 }
 
-if(user.role === "parent"){
-    menu.innerHTML = `
-        <li>Child Progress</li>
-        <li>Attendance</li>
-        <li>Reports</li>
-    `;
+async function loadInstructorStats() {
+    try {
+        const res = await fetch(`${API}/courses/my-courses`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            document.getElementById("courseCount").innerText = data.courses?.length || 0;
+        }
+        
+        // Set default values for XP and badges (not applicable for teachers)
+        document.getElementById("xp").innerText = "-";
+        document.getElementById("badges").innerText = "-";
+        document.getElementById("attendance").innerText = "-";
+        
+    } catch (err) {
+        console.error("Error loading instructor stats:", err);
+    }
 }
 
+async function loadInstructorAnalytics() {
+    try {
+        const res = await fetch(`${API}/courses/my-courses`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("attendanceAnalytics");
+        
+        if (res.ok && data.courses && data.courses.length > 0) {
+            // Get attendance for each course
+            const analyticsCards = await Promise.all(data.courses.slice(0, 6).map(async (course) => {
+                try {
+                    const attendRes = await fetch(`${API}/attendance/courses/${course.id}/analytics`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    const attendData = await attendRes.json();
+                    
+                    return `
+                        <div class="analytics-card">
+                            <h4>${course.title}</h4>
+                            <div class="analytics-stats">
+                                <div class="stat">
+                                    <span class="stat-value">${attendData.analytics?.total_sessions || 0}</span>
+                                    <span class="stat-label">Sessions</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value">${attendData.analytics?.attendance_rate || 0}%</span>
+                                    <span class="stat-label">Attendance</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value">${attendData.analytics?.total_students || 0}</span>
+                                    <span class="stat-label">Students</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value">${attendData.analytics?.present_count || 0}</span>
+                                    <span class="stat-label">Present</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } catch (e) {
+                    return `
+                        <div class="analytics-card">
+                            <h4>${course.title}</h4>
+                            <p>No data available</p>
+                        </div>
+                    `;
+                }
+            }));
+            
+            container.innerHTML = analyticsCards.join('');
+        } else {
+            container.innerHTML = "<p>No courses to analyze. Create a course first!</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading analytics:", err);
+        document.getElementById("attendanceAnalytics").innerHTML = "<p>Error loading analytics.</p>";
+    }
+}
 
-/* ===== GAMIFICATION DEMO VALUES ===== */
-document.getElementById("xp").innerText = 120;
-document.getElementById("badges").innerText = 3;
-document.getElementById("courseCount").innerText = 5;
-document.getElementById("attendance").innerText = "92%";
+async function loadInstructorLiveClasses() {
+    try {
+        const res = await fetch(`${API}/courses/my-courses`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("instructorLiveClasses");
+        
+        if (res.ok && data.courses && data.courses.length > 0) {
+            // Get sessions for each course
+            const allSessions = [];
+            
+            for (const course of data.courses) {
+                try {
+                    const sessionsRes = await fetch(`${API}/attendance/courses/${course.id}/sessions`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    const sessionsData = await sessionsRes.json();
+                    
+                    if (sessionsData.sessions) {
+                        sessionsData.sessions.forEach(session => {
+                            allSessions.push({ ...session, courseTitle: course.title });
+                        });
+                    }
+                } catch (e) {
+                    console.error("Error loading sessions for course:", course.id);
+                }
+            }
+            
+            // Sort by date (most recent first)
+            allSessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            if (allSessions.length > 0) {
+                container.innerHTML = allSessions.slice(0, 10).map(session => `
+                    <div class="session-item ${session.status === 'active' ? 'live-now' : ''}">
+                        <div class="session-info">
+                            <h4>${session.courseTitle}</h4>
+                            <p>${new Date(session.date).toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <span class="status-badge ${session.status === 'active' ? 'status-active' : 'status-ended'}">
+                                ${session.status}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = "<p>No sessions yet. Start a class from your courses!</p>";
+            }
+        } else {
+            container.innerHTML = "<p>No courses to show sessions for.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading live classes:", err);
+        document.getElementById("instructorLiveClasses").innerHTML = "<p>Error loading live classes.</p>";
+    }
+}
 
-function logout(){
+async function loadInstructorLeaderboard() {
+    try {
+        const res = await fetch(`${API}/gamification/leaderboard`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("instructorLeaderboardBody");
+        
+        if (res.ok && data.leaderboard && data.leaderboard.length > 0) {
+            container.innerHTML = data.leaderboard.slice(0, 10).map((entry, index) => {
+                const rankClass = index === 0 ? 'top-1' : index === 1 ? 'top-2' : index === 2 ? 'top-3' : '';
+                const level = Math.floor(Math.sqrt(entry.xp / 100)) + 1;
+                return `
+                    <tr class="${rankClass}">
+                        <td>${index + 1}</td>
+                        <td>${entry.user?.full_name || 'Unknown'}</td>
+                        <td>${entry.xp}</td>
+                        <td>${level}</td>
+                        <td>${entry.badges_earned || 0}</td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = "<tr><td colspan='5'>No leaderboard data yet.</td></tr>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading leaderboard:", err);
+        document.getElementById("instructorLeaderboardBody").innerHTML = "<tr><td colspan='5'>Error loading leaderboard.</td></tr>";
+    }
+}
+
+function showInstructorDashboard() {
+    loadInstructorDashboard();
+}
+
+function showInstructorAnalytics() {
+    hideAllPanels();
+    document.getElementById("instructorAnalyticsPanel").style.display = "block";
+    loadInstructorAnalytics();
+}
+
+function showInstructorLiveClasses() {
+    hideAllPanels();
+    document.getElementById("instructorLiveClassesPanel").style.display = "block";
+    loadInstructorLiveClasses();
+}
+
+function showInstructorLeaderboard() {
+    hideAllPanels();
+    document.getElementById("instructorLeaderboardPanel").style.display = "block";
+    loadInstructorLeaderboard();
+}
+
+/* ===== GUARDIAN/PARENT DASHBOARD FUNCTIONS ===== */
+
+let selectedChildId = null;
+
+async function loadGuardianDashboard() {
+    // Hide all panels first
+    hideAllPanels();
+    
+    // Show guardian panels
+    document.getElementById("guardianChildrenPanel").style.display = "block";
+    document.getElementById("guardianGradesPanel").style.display = "block";
+    document.getElementById("guardianAttendancePanel").style.display = "block";
+    document.getElementById("guardianAchievementsPanel").style.display = "block";
+    
+    // Load guardian data
+    await loadGuardianChildren();
+}
+
+async function loadGuardianChildren() {
+    try {
+        const res = await fetch(`${API}/guardian/children`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("childrenList");
+        
+        if (res.ok && data.children && data.children.length > 0) {
+            container.innerHTML = data.children.map(child => `
+                <div class="child-info-card" onclick="selectChild('${child.id}', '${child.full_name}')" style="cursor: pointer;">
+                    <h4>👨‍🎓 ${child.full_name}</h4>
+                    <p>${child.email}</p>
+                    <p style="color: #666; font-size: 12px;">Relationship: ${child.relationship || 'Child'}</p>
+                </div>
+            `).join('');
+            
+            // Auto-select first child
+            if (!selectedChildId) {
+                selectChild(data.children[0].id, data.children[0].full_name);
+            }
+        } else {
+            container.innerHTML = "<p>No children linked to your account.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading children:", err);
+        document.getElementById("childrenList").innerHTML = "<p>Error loading children.</p>";
+    }
+}
+
+async function selectChild(childId, childName) {
+    selectedChildId = childId;
+    
+    // Update header to show selected child
+    document.getElementById("welcome").innerText = `Dashboard - ${childName}`;
+    
+    // Load child data
+    await Promise.all([
+        loadGuardianGrades(childId),
+        loadGuardianAttendance(childId),
+        loadGuardianAchievements(childId)
+    ]);
+}
+
+async function loadGuardianGrades(childId) {
+    try {
+        const res = await fetch(`${API}/guardian/child/${childId}/grades`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("guardianGrades");
+        
+        if (res.ok && data.grades && data.grades.length > 0) {
+            // Show overall grade
+            const overall = data.overall;
+            
+            container.innerHTML = `
+                <div class="analytics-card" style="margin-bottom: 20px;">
+                    <h4>Overall Grade: ${overall.letter_grade} (${overall.percentage}%)</h4>
+                    <div class="analytics-stats">
+                        <div class="stat">
+                            <span class="stat-value">${overall.earned_points}</span>
+                            <span class="stat-label">Points Earned</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">${overall.total_points}</span>
+                            <span class="stat-label">Total Points</span>
+                        </div>
+                    </div>
+                </div>
+                ${data.grades.slice(0, 10).map(grade => `
+                    <div class="deadline-item">
+                        <div class="deadline-info">
+                            <h4>${grade.assignment_title}</h4>
+                            <p>${grade.course_name}</p>
+                        </div>
+                        <div class="deadline-date">
+                            <span class="days-left" style="color: ${grade.percentage >= 60 ? '#28a745' : '#dc3545'}">
+                                ${grade.grade}/${grade.points} (${grade.percentage}%)
+                            </span>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        } else {
+            container.innerHTML = "<p>No grades available yet.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading grades:", err);
+        document.getElementById("guardianGrades").innerHTML = "<p>Error loading grades.</p>";
+    }
+}
+
+async function loadGuardianAttendance(childId) {
+    try {
+        const res = await fetch(`${API}/guardian/child/${childId}/attendance`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("guardianAttendance");
+        
+        if (res.ok) {
+            const summary = data.summary;
+            
+            container.innerHTML = `
+                <div class="analytics-card" style="margin-bottom: 20px;">
+                    <h4>Attendance Rate: ${summary.rate}%</h4>
+                    <div class="analytics-stats">
+                        <div class="stat">
+                            <span class="stat-value">${summary.present}</span>
+                            <span class="stat-label">Present</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">${summary.absent}</span>
+                            <span class="stat-label">Absent</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">${summary.total}</span>
+                            <span class="stat-label">Total</span>
+                        </div>
+                    </div>
+                </div>
+                ${(data.attendance || []).slice(0, 10).map(record => `
+                    <div class="deadline-item">
+                        <div class="deadline-info">
+                            <h4>${record.session?.course?.title || 'Unknown Course'}</h4>
+                            <p>${new Date(record.marked_at).toLocaleDateString()}</p>
+                        </div>
+                        <div class="deadline-date">
+                            <span class="days-left" style="color: ${record.status === 'present' ? '#28a745' : '#dc3545'}">
+                                ${record.status === 'present' ? '✓ Present' : '✗ Absent'}
+                            </span>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        } else {
+            container.innerHTML = "<p>No attendance data available.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading attendance:", err);
+        document.getElementById("guardianAttendance").innerHTML = "<p>Error loading attendance.</p>";
+    }
+}
+
+async function loadGuardianAchievements(childId) {
+    try {
+        const res = await fetch(`${API}/guardian/child/${childId}/achievements`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("guardianAchievements");
+        
+        if (res.ok) {
+            const stats = data.stats;
+            
+            container.innerHTML = `
+                <div class="analytics-card" style="margin-bottom: 20px;">
+                    <h4>XP & Level</h4>
+                    <div class="analytics-stats">
+                        <div class="stat">
+                            <span class="stat-value">${stats.xp}</span>
+                            <span class="stat-label">XP</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">${stats.level}</span>
+                            <span class="stat-label">Level</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">${stats.streak_days}</span>
+                            <span class="stat-label">Day Streak</span>
+                        </div>
+                    </div>
+                </div>
+                <h4 style="margin: 15px 0;">Badges Earned</h4>
+            `;
+            
+            if (data.achievements && data.achievements.length > 0) {
+                container.innerHTML += data.achievements.map(achievement => `
+                    <div class="achievement-badge">
+                        <span class="icon">🏆</span>
+                        <div>
+                            <div class="name">${achievement.name}</div>
+                            <div class="desc">${achievement.description}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML += "<p>No badges earned yet.</p>";
+            }
+        } else {
+            container.innerHTML = "<p>No achievements data available.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading achievements:", err);
+        document.getElementById("guardianAchievements").innerHTML = "<p>Error loading achievements.</p>";
+    }
+}
+
+function showGuardianDashboard() {
+    document.getElementById("welcome").innerText = "Welcome, " + user.full_name;
+    loadGuardianDashboard();
+}
+
+function showGuardianChildren() {
+    loadGuardianChildren();
+}
+
+/* ===== HELPER FUNCTIONS ===== */
+
+function hideAllPanels() {
+    // Student panels
+    document.getElementById("studentDeadlinesPanel").style.display = "none";
+    document.getElementById("studentAttendanceHistoryPanel").style.display = "none";
+    document.getElementById("studentLiveClassesPanel").style.display = "none";
+    document.getElementById("studentLeaderboardPanel").style.display = "none";
+    document.getElementById("studentCoursesPanel").style.display = "none";
+    document.getElementById("studentAttendancePanel").style.display = "none";
+    
+    // Instructor panels
+    document.getElementById("instructorAnalyticsPanel").style.display = "none";
+    document.getElementById("instructorLiveClassesPanel").style.display = "none";
+    document.getElementById("instructorLeaderboardPanel").style.display = "none";
+    document.getElementById("teacherSessionPanel").style.display = "none";
+    document.getElementById("attendanceListPanel").style.display = "none";
+    document.getElementById("createCoursePanel").style.display = "none";
+    document.getElementById("myCoursesPanel").style.display = "none";
+    document.getElementById("courseSessionsPanel").style.display = "none";
+    
+    // Guardian panels
+    document.getElementById("guardianChildrenPanel").style.display = "none";
+    document.getElementById("guardianGradesPanel").style.display = "none";
+    document.getElementById("guardianAttendancePanel").style.display = "none";
+    document.getElementById("guardianAchievementsPanel").style.display = "none";
+}
+
+function logout() {
     localStorage.clear();
     window.location.href = "login.html";
 }
@@ -65,41 +820,30 @@ function logout(){
 /* ===== TEACHER COURSE FUNCTIONS ===== */
 
 function showCreateCourseForm() {
+    hideAllPanels();
     document.getElementById("createCoursePanel").style.display = "block";
-    document.getElementById("myCoursesPanel").style.display = "none";
-    document.getElementById("teacherSessionPanel").style.display = "none";
-    document.getElementById("attendanceListPanel").style.display = "none";
-    document.getElementById("courseSessionsPanel").style.display = "none";
 }
 
 function hideCreateCourseForm() {
-    document.getElementById("createCoursePanel").style.display = "none";
-    document.getElementById("myCoursesPanel").style.display = "block";
-    document.getElementById("teacherSessionPanel").style.display = "block";
-    document.getElementById("attendanceListPanel").style.display = "block";
-    loadMyCourses();
+    showMyCourses();
 }
 
 function showMyCourses() {
-    document.getElementById("createCoursePanel").style.display = "none";
+    hideAllPanels();
     document.getElementById("myCoursesPanel").style.display = "block";
-    document.getElementById("teacherSessionPanel").style.display = user.role === "teacher" ? "block" : "none";
-    document.getElementById("attendanceListPanel").style.display = user.role === "teacher" ? "block" : "none";
-    document.getElementById("courseSessionsPanel").style.display = "none";
+    document.getElementById("teacherSessionPanel").style.display = "block";
+    document.getElementById("attendanceListPanel").style.display = "block";
     loadMyCourses();
 }
 
 function showTeacherSessionPanel() {
-    document.getElementById("createCoursePanel").style.display = "none";
-    document.getElementById("myCoursesPanel").style.display = "none";
+    hideAllPanels();
     document.getElementById("teacherSessionPanel").style.display = "block";
     document.getElementById("attendanceListPanel").style.display = "block";
-    document.getElementById("courseSessionsPanel").style.display = "none";
     checkActiveSession();
 }
 
 function showStudentAttendance() {
-    // For students, open the scanner page
     window.location.href = "attendance-scan.html";
 }
 
@@ -192,9 +936,7 @@ let currentSessionId = null;
 let qrRefreshInterval = null;
 let attendanceRefreshInterval = null;
 
-// Token rotation interval: 40 seconds
 const TOKEN_INTERVAL = 40000;
-
 
 // Start a new class session
 async function startClass(courseId) {
@@ -228,7 +970,6 @@ async function startClass(courseId) {
 async function checkActiveSession() {
     if (user.role !== "teacher") return;
     
-    // Get all sessions for teacher's courses and find active one
     try {
         const res = await fetch(`${API}/courses/my-courses`, {
             headers: { "Authorization": `Bearer ${token}` }
@@ -236,7 +977,6 @@ async function checkActiveSession() {
         
         const data = await res.json();
         if (data.courses && data.courses.length > 0) {
-            // Check each course for active sessions
             for (const course of data.courses) {
                 const sessionsRes = await fetch(`${API}/attendance/courses/${course.id}/sessions`, {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -261,28 +1001,18 @@ async function showActiveSession(sessionId) {
     document.getElementById("noActiveSession").style.display = "none";
     document.getElementById("activeSessionInfo").style.display = "block";
     
-    // Clear any existing intervals
     if (qrRefreshInterval) clearInterval(qrRefreshInterval);
     if (attendanceRefreshInterval) clearInterval(attendanceRefreshInterval);
     
-    // Load initial QR code
     await updateQRCode(sessionId);
-    
-    // Set up auto-refresh for QR code every 40 seconds
-
     qrRefreshInterval = setInterval(() => updateQRCode(sessionId), TOKEN_INTERVAL);
-    
-    // Load attendance immediately
     await refreshAttendance();
-    
-    // Set up auto-refresh for attendance list every 5 seconds
     attendanceRefreshInterval = setInterval(() => refreshAttendance(), 5000);
 }
 
 // Update QR code with new token
 async function updateQRCode(sessionId) {
     try {
-        // Get current QR data from backend (points to frontend page)
         const tokenRes = await fetch(`${API}/attendance/sessions/${sessionId}/qr`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
@@ -290,11 +1020,8 @@ async function updateQRCode(sessionId) {
         const tokenData = await tokenRes.json();
         
         if (tokenRes.ok) {
-            // Generate QR code using external API - points to attendance-scan-result.html
             const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(tokenData.qrData)}`;
             document.getElementById("qrCodeImage").src = qrImageUrl;
-            
-            // Show countdown timer
             updateCountdown(tokenData.expiresIn);
         } else {
             console.error("Failed to get token:", tokenData.message);
@@ -309,7 +1036,6 @@ async function updateQRCode(sessionId) {
 function updateCountdown(expiresIn) {
     const countdownElement = document.getElementById("qrCountdown");
     if (!countdownElement) {
-        // Create countdown element if it doesn't exist
         const qrDisplay = document.getElementById("qrCodeDisplay");
         const countdownDiv = document.createElement("div");
         countdownDiv.id = "qrCountdown";
@@ -321,7 +1047,6 @@ function updateCountdown(expiresIn) {
     const countdownDiv = document.getElementById("qrCountdown");
     countdownDiv.innerHTML = `⏱️ QR refreshes in <strong>${seconds}s</strong>`;
     
-    // Update every second
     let remaining = expiresIn;
     const countdownInterval = setInterval(() => {
         remaining -= 1000;
@@ -385,7 +1110,6 @@ async function endSession() {
         if (res.ok) {
             alert("Session ended successfully!");
             
-            // Clear intervals
             if (qrRefreshInterval) clearInterval(qrRefreshInterval);
             if (attendanceRefreshInterval) clearInterval(attendanceRefreshInterval);
             
@@ -404,10 +1128,7 @@ async function endSession() {
 
 // View course sessions history
 async function viewCourseSessions(courseId) {
-    document.getElementById("createCoursePanel").style.display = "none";
-    document.getElementById("myCoursesPanel").style.display = "none";
-    document.getElementById("teacherSessionPanel").style.display = "none";
-    document.getElementById("attendanceListPanel").style.display = "none";
+    hideAllPanels();
     document.getElementById("courseSessionsPanel").style.display = "block";
     
     try {
