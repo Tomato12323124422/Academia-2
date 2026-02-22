@@ -337,6 +337,122 @@ router.get('/child/:childId/summary', authMiddleware, async (req, res) => {
     }
 });
 
+// LINK CHILD BY REGISTRATION NUMBER
+router.post('/link-by-regno', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'parent') {
+            return res.status(403).json({ message: 'Only parents can link to students' });
+        }
+
+        const { regNo, relationship } = req.body;
+
+        if (!regNo) {
+            return res.status(400).json({ message: 'Registration number is required' });
+        }
+
+        // Find student by registration number
+        const { data: student, studentError } = await supabase
+            .from('users')
+            .select('id, full_name, email, role')
+            .eq('reg_no', regNo)
+            .eq('role', 'student')
+            .single();
+
+        if (studentError || !student) {
+            return res.status(404).json({ message: 'Student not found with this registration number' });
+        }
+
+        // Check if already linked
+        const { data: existingLink, linkError } = await supabase
+            .from('parent_student_links')
+            .select('*')
+            .eq('parent_id', req.user.id)
+            .eq('student_id', student.id)
+            .single();
+
+        if (existingLink) {
+            return res.status(400).json({ message: 'This student is already linked to your account' });
+        }
+
+        // Create the link
+        const { data: link, error } = await supabase
+            .from('parent_student_links')
+            .insert([{
+                parent_id: req.user.id,
+                student_id: student.id,
+                relationship: relationship || 'Child'
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        res.json({
+            message: 'Student linked successfully!',
+            child: {
+                id: student.id,
+                full_name: student.full_name,
+                email: student.email,
+                relationship: relationship || 'Child'
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// SEARCH STUDENT BY REGISTRATION NUMBER (for preview before linking)
+router.get('/search-student/:regNo', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'parent') {
+            return res.status(403).json({ message: 'Only parents can search for students' });
+        }
+
+        const regNo = req.params.regNo;
+
+        if (!regNo || regNo.length < 2) {
+            return res.status(400).json({ message: 'Please enter at least 2 characters' });
+        }
+
+        // Search student by registration number
+        const { data: student, error } = await supabase
+            .from('users')
+            .select('id, full_name, email, role')
+            .eq('reg_no', regNo)
+            .eq('role', 'student')
+            .single();
+
+        if (error || !student) {
+            return res.status(404).json({ message: 'No student found with this registration number' });
+        }
+
+        // Check if already linked
+        const { data: existingLink } = await supabase
+            .from('parent_student_links')
+            .select('*')
+            .eq('parent_id', req.user.id)
+            .eq('student_id', student.id)
+            .single();
+
+        res.json({
+            student: {
+                id: student.id,
+                full_name: student.full_name,
+                email: student.email,
+                alreadyLinked: !!existingLink
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Helper function to get letter grade
 function getLetterGrade(percentage) {
     if (percentage >= 90) return 'A';
