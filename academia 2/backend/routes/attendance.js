@@ -242,6 +242,26 @@ router.post('/attendance', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Session not found or not active' });
         }
 
+        // CRITICAL: Check if student is enrolled in this course
+        const courseId = session[0].course_id;
+        const { data: enrollment, error: enrollError } = await supabase
+            .from('enrollments')
+            .select('*')
+            .eq('course_id', courseId)
+            .eq('student_id', req.user.id);
+
+        if (enrollError) {
+            return res.status(500).json({ message: enrollError.message });
+        }
+
+        if (!enrollment || enrollment.length === 0) {
+            return res.status(403).json({ 
+                message: 'You are not enrolled in this course. Please enroll using the course code before marking attendance.',
+                enrolled: false,
+                course_id: courseId
+            });
+        }
+
         // Check if already marked attendance
         const { data: existingAttendance, error: checkError } = await supabase
             .from('attendance')

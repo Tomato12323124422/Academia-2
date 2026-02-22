@@ -27,6 +27,16 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
+// Generate unique course code
+function generateCourseCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
 // CREATE COURSE (Teacher only)
 router.post('/', authMiddleware, async (req, res) => {
     try {
@@ -40,6 +50,26 @@ router.post('/', authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Title and description are required' });
         }
 
+        // Generate unique course code
+        let courseCode = generateCourseCode();
+        
+        // Make sure course code is unique
+        let isUnique = false;
+        let attempts = 0;
+        while (!isUnique && attempts < 10) {
+            const { data: existing } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('course_code', courseCode);
+            
+            if (!existing || existing.length === 0) {
+                isUnique = true;
+            } else {
+                courseCode = generateCourseCode();
+            }
+            attempts++;
+        }
+
         const { data, error } = await supabase
             .from('courses')
             .insert([{
@@ -48,6 +78,7 @@ router.post('/', authMiddleware, async (req, res) => {
                 category: category || 'General',
                 duration: duration || 'Not specified',
                 teacher_id: req.user.id,
+                course_code: courseCode,
                 created_at: new Date().toISOString()
             }])
             .select();
@@ -58,7 +89,8 @@ router.post('/', authMiddleware, async (req, res) => {
 
         res.status(201).json({ 
             message: 'Course created successfully', 
-            course: data[0] 
+            course: data[0],
+            courseCode: courseCode
         });
 
     } catch (err) {
@@ -241,6 +273,173 @@ router.get('/:id/enrollments', authMiddleware, async (req, res) => {
         }
 
         res.json({ enrollments: data });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// ENROLL BY COURSE CODE (Student only)
+router.post('/enroll-by-code', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'student') {
+            return res.status(403).json({ message: 'Only students can enroll via course code' });
+        }
+
+        const { courseCode } = req.body;
+        
+        if (!courseCode) {
+            return res.status(400).json({ message: 'Course code is required' });
+        }
+
+        // Find course by course code
+        const { data: course, error: courseError } = await supabase
+            .from('courses')
+            .select('*')
+            .eq('course_code', courseCode.toUpperCase());
+
+        if (courseError) {
+            return res.status(500).json({ message: courseError.message });
+        }
+
+        if (!course || course.length === 0) {
+            return res.status(404).json({ message: 'Invalid course code. Please check and try again.' });
+        }
+
+        const courseData = course[0];
+
+        // Check if already enrolled
+        const { data: existingEnrollment, error: checkError } = await supabase
+            .from('enrollments')
+            .select('*')
+            .eq('course_id', courseData.id)
+            .eq('student_id', req.user.id);
+
+        if (checkError) {
+            return res.status(500).json({ message: checkError.message });
+        }
+
+        if (existingEnrollment && existingEnrollment.length > 0) {
+            return res.status(400).json({ message: 'You are already enrolled in this course' });
+        }
+
+        // Enroll the student
+        const { data, error } = await supabase
+            .from('enrollments')
+            .insert([{
+                course_id: courseData.id,
+                student_id: req.user.id,
+                enrolled_at: new Date().toISOString()
+            }]);
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        res.json({ 
+            message: 'Enrolled successfully!',
+            course: {
+                id: courseData.id,
+                title: courseData.title,
+                description: courseData.description,
+                category: courseData.category
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET COURSE BY CODE (For preview before enrolling)
+router.get('/by-code/:code', async (req, res) => {
+    try {
+        const { data: course, error } = await supabase
+            .from('courses')
+            .select('id, title, description, category, teacher_id, course_code')
+            .eq('course_code', req.params.code.toUpperCase());
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        if (!course || course.length === 0) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        // Get teacher name
+        const { data: teacher } = await supabase
+            .from('users')
+            .select('full_name')
+            .eq('id', course[0].teacher_id);
+
+        res.json({ 
+            course: {
+                ...course[0],
+                teacher_name: teacher?.[0]?.full_name || 'Unknown'
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// REGENERATE COURSE CODE (Teacher only)
+router.post('/:id/regenerate-code', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'teacher') {
+            return res.status(403).json({ message: 'Only teachers can regenerate course codes' });
+        }
+
+        // Verify teacher owns this course
+        const { data: course, error: courseError } = await supabase
+            .from('courses')
+            .select('*')
+            .eq('id', req.params.id)
+            .eq('teacher_id', req.user.id);
+
+        if (courseError || !course || course.length === 0) {
+            return res.status(404).json({ message: 'Course not found or not authorized' });
+        }
+
+        // Generate new unique course code
+        let newCode = generateCourseCode();
+        let isUnique = false;
+        let attempts = 0;
+        
+        while (!isUnique && attempts < 10) {
+            const { data: existing } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('course_code', newCode);
+            
+            if (!existing || existing.length === 0) {
+                isUnique = true;
+            } else {
+                newCode = generateCourseCode();
+            }
+            attempts++;
+        }
+
+        // Update course with new code
+        const { data, error } = await supabase
+            .from('courses')
+            .update({ course_code: newCode })
+            .eq('id', req.params.id)
+            .select();
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        res.json({ 
+            message: 'Course code regenerated successfully',
+            courseCode: newCode
+        });
 
     } catch (err) {
         console.error(err);

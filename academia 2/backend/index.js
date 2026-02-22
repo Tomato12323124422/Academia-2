@@ -66,6 +66,12 @@ app.get('/attendance-form.html', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/attendance-form.html'));
 });
 
+// Serve enroll-by-code.html directly
+app.get('/enroll-by-code.html', (req, res) => {
+    console.log('Serving enroll-by-code.html');
+    res.sendFile(path.join(__dirname, '../frontend/enroll-by-code.html'));
+});
+
 // Catch-all handler: serve index.html for any non-API routes that aren't specific HTML files
 app.use((req, res, next) => {
     // Only serve index.html for routes that don't look like API or specific pages
