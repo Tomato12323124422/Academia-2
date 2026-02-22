@@ -416,6 +416,129 @@
 
     // Load students on page load
     loadStudents();
+
+    // ===== ADDITIONAL FEATURES =====
+
+    // View Student Progress
+    async function viewStudentProgress(studentId, courseId, courseTitle) {
+        if (!studentId) {
+            alert("Student ID not found");
+            return;
+        }
+        
+        try {
+            // Get attendance for this student in this course
+            const attendRes = await fetch(`${API}/attendance/student/${studentId}/course/${courseId}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const attendData = await attendRes.json();
+            
+            // Get grades for this student in this course
+            const gradesRes = await fetch(`${API}/grades/student/${studentId}/course/${courseId}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const gradesData = await gradesRes.json();
+            
+            // Build progress info
+            const totalSessions = attendData.totalSessions || 0;
+            const attendedSessions = attendData.presentCount || 0;
+            const attendancePercent = totalSessions > 0 ? Math.round((attendedSessions / totalSessions) * 100) : 0;
+            
+            const avgGrade = gradesData.averageGrade || "N/A";
+            const assignmentsCompleted = gradesData.completedCount || 0;
+            const totalAssignments = gradesData.totalCount || 0;
+            
+            alert(`Student Progress - ${courseTitle}\n\n` +
+                  `Attendance: ${attendedSessions}/${totalSessions} sessions (${attendancePercent}%)\n` +
+                  `Assignments: ${assignmentsCompleted}/${totalAssignments} completed\n` +
+                  `Average Grade: ${avgGrade}`);
+            
+        } catch (err) {
+            console.error("Error loading student progress:", err);
+            alert("Could not load student progress. Please try again.");
+        }
+    }
+
+    // Drop Student from Course
+    async function dropStudent(studentId, courseId, studentName) {
+        if (!studentId || !courseId) {
+            alert("Student or Course ID not found");
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to drop ${studentName} from this course?\n\nThis action cannot be undone.`)) {
+            return;
+        }
+        
+        try {
+            const res = await fetch(`${API}/courses/${courseId}/enrollments/${studentId}`, {
+                method: "DELETE",
+                headers: { 
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok) {
+                alert(`${studentName} has been dropped from the course.`);
+                loadStudents(); // Refresh the list
+            } else {
+                alert(data.message || "Failed to drop student");
+            }
+            
+        } catch (err) {
+            console.error("Error dropping student:", err);
+            alert("Network error - could not drop student");
+        }
+    }
+
+    // Export to CSV
+    function exportToCSV() {
+        const courseFilter = document.getElementById("courseFilter").value;
+        let studentsToExport = allStudents;
+        
+        // Filter by course if selected
+        if (courseFilter !== "all") {
+            studentsToExport = studentsToExport.filter(s => s.course_id === courseFilter);
+        }
+        
+        if (studentsToExport.length === 0) {
+            alert("No students to export");
+            return;
+        }
+        
+        // Build CSV content
+        let csvContent = "Student Name,Registration Number,Email,Course,Enrolled Date,Status\n";
+        
+        studentsToExport.forEach(student => {
+            const name = student.student?.full_name || "N/A";
+            const regNum = student.student?.id?.substring(0, 8).toUpperCase() || "N/A";
+            const email = student.student?.email || "N/A";
+            const course = student.course_title || "N/A";
+            const date = new Date(student.enrolled_at).toLocaleDateString();
+            const status = "Active";
+            
+            csvContent += `"${name}","${regNum}","${email}","${course}","${date}","${status}"\n`;
+        });
+        
+        // Create and download file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        
+        const timestamp = new Date().toISOString().slice(0,10);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `students_export_${timestamp}.csv`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        alert(`Exported ${studentsToExport.length} students to CSV`);
+    }
 </script>
 
 </body>
