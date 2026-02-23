@@ -73,8 +73,12 @@ if (loginForm) {
 
                 alert("Login successful");
 
-                // ✅ REDIRECT
-                window.location.href = "dashboard.html";
+                // ✅ REDIRECT BASED ON ROLE
+                if (data.user.role === 'admin') {
+                    window.location.href = "admin-dashboard.html";
+                } else {
+                    window.location.href = "dashboard.html";
+                }
 
             } else {
                 alert(data.message || "Login failed");
