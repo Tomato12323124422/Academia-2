@@ -122,8 +122,6 @@
         </section>
 
         <!-- QR ATTENDANCE - STUDENT -->
-
-
         <section class="panel" id="studentAttendancePanel" style="display: none;">
             <h3>📱 Scan QR for Attendance</h3>
             <p>Use your phone to scan the teacher's QR code</p>
@@ -260,8 +258,30 @@
         <!-- Children List - Guardian -->
         <section class="panel" id="guardianChildrenPanel" style="display: none;">
             <h3>👨‍👩‍👧 My Children</h3>
+            
+            <!-- Link New Child Section -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h4>Link a Child by Email</h4>
+                <p style="color: #666; margin-bottom: 15px;">Enter the student's email address to search and link</p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <input type="email" id="searchChildEmail" placeholder="Enter student email" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button class="primary-btn" onclick="searchChildByEmail()">Search</button>
+                </div>
+                <div id="searchChildResult" style="margin-top: 15px;"></div>
+            </div>
+
+            <!-- Linked Children List -->
+            <h4>Linked Children</h4>
             <div id="childrenList">
                 <p>Loading children...</p>
+            </div>
+        </section>
+
+        <!-- Child Enrolled Courses - Guardian -->
+        <section class="panel" id="guardianCoursesPanel" style="display: none;">
+            <h3>📚 Enrolled Courses</h3>
+            <div id="guardianCourses">
+                <p>Select a child to view courses...</p>
             </div>
         </section>
 
@@ -278,6 +298,14 @@
             <h3>📋 Attendance Summary</h3>
             <div id="guardianAttendance">
                 <p>Select a child to view attendance...</p>
+            </div>
+        </section>
+
+        <!-- Child Assignments - Guardian -->
+        <section class="panel" id="guardianAssignmentsPanel" style="display: none;">
+            <h3>📝 Submitted Assignments</h3>
+            <div id="guardianAssignments">
+                <p>Select a child to view assignments...</p>
             </div>
         </section>
 

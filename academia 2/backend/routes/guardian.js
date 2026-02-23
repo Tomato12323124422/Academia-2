@@ -37,10 +37,7 @@ router.get('/children', authMiddleware, async (req, res) => {
         // Get linked children
         const { data: links, error } = await supabase
             .from('parent_student_links')
-            .select(`
-                *,
-                student:users!student_id(id, full_name, email, role)
-            `)
+            .select(`*, student:users!student_id(id, full_name, email, role)`)
             .eq('parent_id', req.user.id);
 
         if (error) {
@@ -62,194 +59,53 @@ router.get('/children', authMiddleware, async (req, res) => {
     }
 });
 
-// GET CHILD'S GRADES
-router.get('/child/:childId/grades', authMiddleware, async (req, res) => {
+// SEARCH STUDENT BY EMAIL (for preview before linking)
+router.get('/search-student-by-email', authMiddleware, async (req, res) => {
     try {
         if (req.user.role !== 'parent') {
-            return res.status(403).json({ message: 'Only parents can access this' });
+            return res.status(403).json({ message: 'Only parents can search for students' });
         }
 
-        // Verify parent is linked to this child
-        const { data: link, linkError } = await supabase
-            .from('parent_student_links')
-            .select('*')
-            .eq('parent_id', req.user.id)
-            .eq('student_id', req.params.childId)
-            .single();
+        const email = req.query.email;
 
-        if (linkError || !link) {
-            return res.status(403).json({ message: 'Not authorized to view this student\'s grades' });
+        if (!email || email.length < 2) {
+            return res.status(400).json({ message: 'Please enter at least 2 characters' });
         }
 
-        // Get student's submissions with grades
-        const { data: submissions, error } = await supabase
-            .from('submissions')
-            .select(`
-                *,
-                assignment:assignments(
-                    id,
-                    title,
-                    points,
-                    course:courses(id, title, category)
-                )
-            `)
-            .eq('student_id', req.params.childId)
-            .not('grade', 'is', null)
-            .order('graded_at', { ascending: false });
+        // Search student by email (case insensitive)
+        const { data: student, error } = await supabase
+            .from('users')
+            .select('id, full_name, email, role')
+            .ilike('email', `%${email}%`)
+            .eq('role', 'student')
+            .limit(10);
 
         if (error) {
             return res.status(500).json({ message: error.message });
         }
 
-        // Calculate grades
-        let totalPoints = 0;
-        let earnedPoints = 0;
-        
-        const gradesWithCourse = (submissions || []).map(submission => {
-            const points = submission.assignment?.points || 100;
-            const earned = submission.grade || 0;
-            totalPoints += points;
-            earnedPoints += earned;
-            
+        if (!student || student.length === 0) {
+            return res.status(404).json({ message: 'No student found with this email' });
+        }
+
+        // Check if already linked for each student
+        const studentsWithLinkStatus = await Promise.all(student.map(async (s) => {
+            const { data: existingLink } = await supabase
+                .from('parent_student_links')
+                .select('*')
+                .eq('parent_id', req.user.id)
+                .eq('student_id', s.id)
+                .single();
+
             return {
-                id: submission.id,
-                assignment_title: submission.assignment?.title || 'Unknown',
-                course_name: submission.assignment?.course?.title || 'Unknown',
-                course_category: submission.assignment?.course?.category || 'General',
-                points: points,
-                grade: earned,
-                percentage: Math.round((earned / points) * 100),
-                feedback: submission.feedback,
-                submitted_at: submission.submitted_at,
-                graded_at: submission.graded_at
+                id: s.id,
+                full_name: s.full_name,
+                email: s.email,
+                alreadyLinked: !!existingLink
             };
-        });
-
-        const overallGrade = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-
-        res.json({ 
-            grades: gradesWithCourse,
-            overall: {
-                total_points: totalPoints,
-                earned_points: earnedPoints,
-                percentage: overallGrade,
-                letter_grade: getLetterGrade(overallGrade)
-            }
-        });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// GET CHILD'S ATTENDANCE
-router.get('/child/:childId/attendance', authMiddleware, async (req, res) => {
-    try {
-        if (req.user.role !== 'parent') {
-            return res.status(403).json({ message: 'Only parents can access this' });
-        }
-
-        // Verify parent is linked to this child
-        const { data: link, linkError } = await supabase
-            .from('parent_student_links')
-            .select('*')
-            .eq('parent_id', req.user.id)
-            .eq('student_id', req.params.childId)
-            .single();
-
-        if (linkError || !link) {
-            return res.status(403).json({ message: 'Not authorized to view this student\'s attendance' });
-        }
-
-        // Get student's attendance records
-        const { data: attendance, error } = await supabase
-            .from('attendance')
-            .select(`
-                *,
-                session:sessions(*, course:courses(title))
-            `)
-            .eq('student_id', req.params.childId)
-            .order('marked_at', { ascending: false });
-
-        if (error) {
-            return res.status(500).json({ message: error.message });
-        }
-
-        // Calculate attendance summary
-        const total = attendance?.length || 0;
-        const present = attendance?.filter(a => a.status === 'present').length || 0;
-        const absent = attendance?.filter(a => a.status === 'absent').length || 0;
-        const rate = total > 0 ? Math.round((present / total) * 100) : 0;
-
-        res.json({ 
-            attendance: attendance || [],
-            summary: {
-                total,
-                present,
-                absent,
-                rate
-            }
-        });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// GET CHILD'S ACHIEVEMENTS
-router.get('/child/:childId/achievements', authMiddleware, async (req, res) => {
-    try {
-        if (req.user.role !== 'parent') {
-            return res.status(403).json({ message: 'Only parents can access this' });
-        }
-
-        // Verify parent is linked to this child
-        const { data: link, linkError } = await supabase
-            .from('parent_student_links')
-            .select('*')
-            .eq('parent_id', req.user.id)
-            .eq('student_id', req.params.childId)
-            .single();
-
-        if (linkError || !link) {
-            return res.status(403).json({ message: 'Not authorized to view this student\'s achievements' });
-        }
-
-        // Get student's stats
-        const { data: stats, statsError } = await supabase
-            .from('user_stats')
-            .select('*')
-            .eq('user_id', req.params.childId)
-            .single();
-
-        // Get student's badges
-        const { data: badges, badgesError } = await supabase
-            .from('user_badges')
-            .select('*, badge:badges(*)')
-            .eq('user_id', req.params.childId);
-
-        if (badgesError) {
-            return res.status(500).json({ message: badgesError.message });
-        }
-
-        const achievements = (badges || []).map(ub => ({
-            id: ub.badge?.id,
-            name: ub.badge?.name,
-            description: ub.badge?.description,
-            icon: ub.badge?.icon,
-            earned_at: ub.earned_at
         }));
 
-        res.json({ 
-            achievements,
-            stats: {
-                xp: stats?.xp || 0,
-                level: Math.floor(Math.sqrt((stats?.xp || 0) / 100)) + 1,
-                streak_days: stats?.streak_days || 0
-            }
-        });
+        res.json({ students: studentsWithLinkStatus });
 
     } catch (err) {
         console.error(err);
@@ -257,113 +113,33 @@ router.get('/child/:childId/achievements', authMiddleware, async (req, res) => {
     }
 });
 
-// GET CHILD'S PROGRESS SUMMARY
-router.get('/child/:childId/summary', authMiddleware, async (req, res) => {
-    try {
-        if (req.user.role !== 'parent') {
-            return res.status(403).json({ message: 'Only parents can access this' });
-        }
-
-        // Verify parent is linked to this child
-        const { data: link, linkError } = await supabase
-            .from('parent_student_links')
-            .select('*')
-            .eq('parent_id', req.user.id)
-            .eq('student_id', req.params.childId)
-            .single();
-
-        if (linkError || !link) {
-            return res.status(403).json({ message: 'Not authorized to view this student\'s progress' });
-        }
-
-        // Get enrollments (courses)
-        const { data: enrollments } = await supabase
-            .from('enrollments')
-            .select('course_id')
-            .eq('student_id', req.params.childId);
-
-        const courseCount = enrollments?.length || 0;
-
-        // Get grades
-        const { data: submissions } = await supabase
-            .from('submissions')
-            .select('grade, assignment:assignments(points)')
-            .eq('student_id', req.params.childId)
-            .not('grade', 'is', null);
-
-        let totalPoints = 0;
-        let earnedPoints = 0;
-        
-        submissions?.forEach(sub => {
-            const points = sub.assignment?.points || 100;
-            totalPoints += points;
-            earnedPoints += sub.grade || 0;
-        });
-
-        const gradeAverage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-
-        // Get attendance
-        const { data: attendance } = await supabase
-            .from('attendance')
-            .select('status')
-            .eq('student_id', req.params.childId);
-
-        const totalSessions = attendance?.length || 0;
-        const presentSessions = attendance?.filter(a => a.status === 'present').length || 0;
-        const attendanceRate = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
-
-        // Get stats
-        const { data: stats } = await supabase
-            .from('user_stats')
-            .select('*')
-            .eq('user_id', req.params.childId)
-            .single();
-
-        res.json({
-            summary: {
-                courses_enrolled: courseCount,
-                grade_average: gradeAverage,
-                letter_grade: getLetterGrade(gradeAverage),
-                attendance_rate: attendanceRate,
-                xp: stats?.xp || 0,
-                level: Math.floor(Math.sqrt((stats?.xp || 0) / 100)) + 1,
-                streak_days: stats?.streak_days || 0
-            }
-        });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// LINK CHILD BY REGISTRATION NUMBER
-router.post('/link-by-regno', authMiddleware, async (req, res) => {
+// LINK CHILD BY EMAIL
+router.post('/link-by-email', authMiddleware, async (req, res) => {
     try {
         if (req.user.role !== 'parent') {
             return res.status(403).json({ message: 'Only parents can link to students' });
         }
 
-        const { regNo, relationship } = req.body;
+        const { email, relationship } = req.body;
 
-        if (!regNo) {
-            return res.status(400).json({ message: 'Registration number is required' });
+        if (!email) {
+            return res.status(400).json({ message: 'Student email is required' });
         }
 
-        // Find student by registration number
+        // Find student by email
         const { data: student, studentError } = await supabase
             .from('users')
             .select('id, full_name, email, role')
-            .eq('reg_no', regNo)
+            .eq('email', email.toLowerCase())
             .eq('role', 'student')
             .single();
 
         if (studentError || !student) {
-            return res.status(404).json({ message: 'Student not found with this registration number' });
+            return res.status(404).json({ message: 'Student not found with this email' });
         }
 
         // Check if already linked
-        const { data: existingLink, linkError } = await supabase
+        const { data: existingLink } = await supabase
             .from('parent_student_links')
             .select('*')
             .eq('parent_id', req.user.id)
@@ -405,47 +181,276 @@ router.post('/link-by-regno', authMiddleware, async (req, res) => {
     }
 });
 
-// SEARCH STUDENT BY REGISTRATION NUMBER (for preview before linking)
-router.get('/search-student/:regNo', authMiddleware, async (req, res) => {
+// GET CHILD'S ENROLLED COURSES
+router.get('/child/:childId/courses', authMiddleware, async (req, res) => {
     try {
         if (req.user.role !== 'parent') {
-            return res.status(403).json({ message: 'Only parents can search for students' });
+            return res.status(403).json({ message: 'Only parents can access this' });
         }
 
-        const regNo = req.params.regNo;
-
-        if (!regNo || regNo.length < 2) {
-            return res.status(400).json({ message: 'Please enter at least 2 characters' });
-        }
-
-        // Search student by registration number
-        const { data: student, error } = await supabase
-            .from('users')
-            .select('id, full_name, email, role')
-            .eq('reg_no', regNo)
-            .eq('role', 'student')
-            .single();
-
-        if (error || !student) {
-            return res.status(404).json({ message: 'No student found with this registration number' });
-        }
-
-        // Check if already linked
-        const { data: existingLink } = await supabase
+        // Verify parent is linked to this child
+        const { data: link } = await supabase
             .from('parent_student_links')
             .select('*')
             .eq('parent_id', req.user.id)
-            .eq('student_id', student.id)
+            .eq('student_id', req.params.childId)
             .single();
 
-        res.json({
-            student: {
-                id: student.id,
-                full_name: student.full_name,
-                email: student.email,
-                alreadyLinked: !!existingLink
+        if (!link) {
+            return res.status(403).json({ message: 'Not authorized to view this student\'s courses' });
+        }
+
+        // Get enrolled courses
+        const { data: enrollments, error } = await supabase
+            .from('enrollments')
+            .select('*, course:courses(*, teacher:users(full_name))')
+            .eq('student_id', req.params.childId);
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        const courses = (enrollments || []).map(e => ({
+            id: e.course?.id,
+            title: e.course?.title || 'Unknown',
+            description: e.course?.description,
+            category: e.course?.category,
+            duration: e.course?.duration,
+            teacher: e.course?.teacher?.full_name || 'Unknown',
+            enrolled_at: e.enrolled_at
+        }));
+
+        res.json({ courses });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET CHILD'S GRADES
+router.get('/child/:childId/grades', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'parent') {
+            return res.status(403).json({ message: 'Only parents can access this' });
+        }
+
+        // Verify parent is linked to this child
+        const { data: link } = await supabase
+            .from('parent_student_links')
+            .select('*')
+            .eq('parent_id', req.user.id)
+            .eq('student_id', req.params.childId)
+            .single();
+
+        if (!link) {
+            return res.status(403).json({ message: 'Not authorized to view this student\'s grades' });
+        }
+
+        // Get student's submissions with grades
+        const { data: submissions, error } = await supabase
+            .from('submissions')
+            .select('*, assignment:assignments(*, course:courses(title))')
+            .eq('student_id', req.params.childId)
+            .not('grade', 'is', null)
+            .order('graded_at', { ascending: false });
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        // Calculate grades
+        let totalPoints = 0;
+        let earnedPoints = 0;
+        
+        const gradesWithCourse = (submissions || []).map(submission => {
+            const points = submission.assignment?.points || 100;
+            const earned = submission.grade || 0;
+            totalPoints += points;
+            earnedPoints += earned;
+            
+            return {
+                id: submission.id,
+                assignment_title: submission.assignment?.title || 'Unknown',
+                course_name: submission.assignment?.course?.title || 'Unknown',
+                points: points,
+                grade: earned,
+                percentage: Math.round((earned / points) * 100),
+                feedback: submission.feedback,
+                submitted_at: submission.submitted_at,
+                graded_at: submission.graded_at
+            };
+        });
+
+        const overallGrade = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+
+        res.json({ 
+            grades: gradesWithCourse,
+            overall: {
+                total_points: totalPoints,
+                earned_points: earnedPoints,
+                percentage: overallGrade,
+                letter_grade: getLetterGrade(overallGrade)
             }
         });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET CHILD'S ATTENDANCE
+router.get('/child/:childId/attendance', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'parent') {
+            return res.status(403).json({ message: 'Only parents can access this' });
+        }
+
+        // Verify parent is linked to this child
+        const { data: link } = await supabase
+            .from('parent_student_links')
+            .select('*')
+            .eq('parent_id', req.user.id)
+            .eq('student_id', req.params.childId)
+            .single();
+
+        if (!link) {
+            return res.status(403).json({ message: 'Not authorized to view this student\'s attendance' });
+        }
+
+        // Get student's attendance records
+        const { data: attendance, error } = await supabase
+            .from('attendance')
+            .select('*, session:sessions(*, course:courses(title))')
+            .eq('student_id', req.params.childId)
+            .order('marked_at', { ascending: false });
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        // Calculate attendance summary
+        const total = attendance?.length || 0;
+        const present = attendance?.filter(a => a.status === 'present').length || 0;
+        const absent = attendance?.filter(a => a.status === 'absent').length || 0;
+        const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+
+        res.json({ 
+            attendance: attendance || [],
+            summary: {
+                total,
+                present,
+                absent,
+                rate
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET CHILD'S ACHIEVEMENTS
+router.get('/child/:childId/achievements', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'parent') {
+            return res.status(403).json({ message: 'Only parents can access this' });
+        }
+
+        // Verify parent is linked to this child
+        const { data: link } = await supabase
+            .from('parent_student_links')
+            .select('*')
+            .eq('parent_id', req.user.id)
+            .eq('student_id', req.params.childId)
+            .single();
+
+        if (!link) {
+            return res.status(403).json({ message: 'Not authorized to view this student\'s achievements' });
+        }
+
+        // Get student's stats
+        const { data: stats } = await supabase
+            .from('user_stats')
+            .select('*')
+            .eq('user_id', req.params.childId)
+            .single();
+
+        // Get student's badges
+        const { data: badges } = await supabase
+            .from('user_badges')
+            .select('*, badge:badges(*)')
+            .eq('user_id', req.params.childId);
+
+        const achievements = (badges || []).map(ub => ({
+            id: ub.badge?.id,
+            name: ub.badge?.name,
+            description: ub.badge?.description,
+            icon: ub.badge?.icon,
+            earned_at: ub.earned_at
+        }));
+
+        res.json({ 
+            achievements,
+            stats: {
+                xp: stats?.xp || 0,
+                level: Math.floor(Math.sqrt((stats?.xp || 0) / 100)) + 1,
+                streak_days: stats?.streak_days || 0
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET CHILD'S SUBMITTED ASSIGNMENTS
+router.get('/child/:childId/assignments', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'parent') {
+            return res.status(403).json({ message: 'Only parents can access this' });
+        }
+
+        // Verify parent is linked to this child
+        const { data: link } = await supabase
+            .from('parent_student_links')
+            .select('*')
+            .eq('parent_id', req.user.id)
+            .eq('student_id', req.params.childId)
+            .single();
+
+        if (!link) {
+            return res.status(403).json({ message: 'Not authorized to view this student\'s assignments' });
+        }
+
+        // Get submissions with assignment details
+        const { data: submissions, error } = await supabase
+            .from('submissions')
+            .select('*, assignment:assignments(*, course:courses(title))')
+            .eq('student_id', req.params.childId)
+            .order('submitted_at', { ascending: false });
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        const assignments = (submissions || []).map(sub => ({
+            id: sub.id,
+            title: sub.assignment?.title || 'Unknown',
+            description: sub.assignment?.description,
+            course_name: sub.assignment?.course?.title || 'Unknown',
+            due_date: sub.assignment?.due_date,
+            points: sub.assignment?.points || 100,
+            grade: sub.grade,
+            status: sub.status,
+            submitted_at: sub.submitted_at,
+            graded_at: sub.graded_at
+        }));
+
+        res.json({ assignments });
 
     } catch (err) {
         console.error(err);

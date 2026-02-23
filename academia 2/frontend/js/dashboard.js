@@ -29,8 +29,6 @@ if (user.role === "student") {
         <li onclick="showStudentLiveClasses()">📹 Live Classes</li>
         <li onclick="showStudentLeaderboard()">🏆 Leaderboard</li>
     `;
-
-    // Load student dashboard data
     loadStudentDashboard();
 }
 
@@ -45,7 +43,6 @@ if (user.role === "teacher") {
         <li onclick="showTeacherSessionPanel()">📱 Attendance QR</li>
         <li onclick="window.location.href='students.html'">👨‍🎓 Students</li>
     `;
-    // Load instructor dashboard data
     loadInstructorDashboard();
 }
 
@@ -54,17 +51,13 @@ if (user.role === "parent") {
         <li onclick="showGuardianDashboard()">📊 Dashboard</li>
         <li onclick="showGuardianChildren()">👨‍👩‍👧 My Children</li>
     `;
-    // Load guardian dashboard data
     loadGuardianDashboard();
 }
 
 /* ===== STUDENT DASHBOARD FUNCTIONS ===== */
 
 async function loadStudentDashboard() {
-    // Hide all panels first
     hideAllPanels();
-    
-    // Show student panels
     document.getElementById("studentDeadlinesPanel").style.display = "block";
     document.getElementById("studentAttendanceHistoryPanel").style.display = "block";
     document.getElementById("studentLiveClassesPanel").style.display = "block";
@@ -72,7 +65,6 @@ async function loadStudentDashboard() {
     document.getElementById("studentCoursesPanel").style.display = "block";
     document.getElementById("studentAttendancePanel").style.display = "block";
     
-    // Load all student data
     await Promise.all([
         loadStudentStats(),
         loadStudentCoursesList(),
@@ -85,7 +77,6 @@ async function loadStudentDashboard() {
 
 async function loadStudentStats() {
     try {
-        // Load gamification stats
         const statsRes = await fetch(`${API}/gamification/stats`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
@@ -96,7 +87,6 @@ async function loadStudentStats() {
             document.getElementById("badges").innerText = statsData.stats?.badges_earned || 0;
         }
         
-        // Load courses count
         const coursesRes = await fetch(`${API}/courses/enrolled`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
@@ -106,7 +96,6 @@ async function loadStudentStats() {
             document.getElementById("courseCount").innerText = coursesData.courses?.length || 0;
         }
         
-        // Load attendance
         const attendRes = await fetch(`${API}/attendance/my-attendance`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
@@ -160,7 +149,6 @@ async function loadStudentDeadlines() {
         const container = document.getElementById("assignmentsList");
         
         if (res.ok && data.assignments && data.assignments.length > 0) {
-            // Sort by due date and show upcoming
             const sorted = data.assignments
                 .filter(a => a.status !== 'submitted')
                 .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
@@ -245,9 +233,8 @@ async function loadStudentLiveClasses() {
         const data = await res.json();
         const container = document.getElementById("studentLiveClasses");
         
-if (res.ok && data.sessions && data.sessions.length > 0) {
+        if (res.ok && data.sessions && data.sessions.length > 0) {
             container.innerHTML = data.sessions.slice(0, 5).map(session => {
-                // Use real local time from start_time if available
                 const startTime = session.start_time || session.date;
                 return `
                 <div class="live-class-item live-now">
@@ -341,12 +328,10 @@ let enrolledCourseIds = new Set();
 
 async function loadBrowseCourses() {
     try {
-        // Load all available courses
         const coursesRes = await fetch(`${API}/courses`);
         const coursesData = await coursesRes.json();
         allAvailableCourses = coursesData.courses || [];
 
-        // Load enrolled courses to mark them
         const enrolledRes = await fetch(`${API}/courses/enrolled`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
@@ -410,7 +395,6 @@ async function enrollInCourse(courseId) {
             alert("Successfully enrolled in the course!");
             enrolledCourseIds.add(courseId);
             renderBrowseCourses();
-            // Also refresh my courses list if visible
             if (document.getElementById("studentCoursesPanel").style.display === "block") {
                 loadStudentCoursesList();
             }
@@ -434,10 +418,8 @@ function showBrowseCourses() {
 /* ===== INSTRUCTOR DASHBOARD FUNCTIONS ===== */
 
 async function loadInstructorDashboard() {
-    // Hide all panels first
     hideAllPanels();
     
-    // Show instructor panels
     document.getElementById("instructorAnalyticsPanel").style.display = "block";
     document.getElementById("instructorLiveClassesPanel").style.display = "block";
     document.getElementById("instructorLeaderboardPanel").style.display = "block";
@@ -445,7 +427,6 @@ async function loadInstructorDashboard() {
     document.getElementById("attendanceListPanel").style.display = "block";
     document.getElementById("myCoursesPanel").style.display = "block";
     
-    // Load all instructor data
     await Promise.all([
         loadInstructorStats(),
         loadMyCourses(),
@@ -468,7 +449,6 @@ async function loadInstructorStats() {
             document.getElementById("courseCount").innerText = data.courses?.length || 0;
         }
         
-        // Set default values for XP and badges (not applicable for teachers)
         document.getElementById("xp").innerText = "-";
         document.getElementById("badges").innerText = "-";
         document.getElementById("attendance").innerText = "-";
@@ -488,7 +468,6 @@ async function loadInstructorAnalytics() {
         const container = document.getElementById("attendanceAnalytics");
         
         if (res.ok && data.courses && data.courses.length > 0) {
-            // Get attendance for each course
             const analyticsCards = await Promise.all(data.courses.slice(0, 6).map(async (course) => {
                 try {
                     const attendRes = await fetch(`${API}/attendance/courses/${course.id}/analytics`, {
@@ -512,20 +491,11 @@ async function loadInstructorAnalytics() {
                                     <span class="stat-value">${attendData.analytics?.total_students || 0}</span>
                                     <span class="stat-label">Students</span>
                                 </div>
-                                <div class="stat">
-                                    <span class="stat-value">${attendData.analytics?.present_count || 0}</span>
-                                    <span class="stat-label">Present</span>
-                                </div>
                             </div>
                         </div>
                     `;
                 } catch (e) {
-                    return `
-                        <div class="analytics-card">
-                            <h4>${course.title}</h4>
-                            <p>No data available</p>
-                        </div>
-                    `;
+                    return `<div class="analytics-card"><h4>${course.title}</h4><p>No data available</p></div>`;
                 }
             }));
             
@@ -550,7 +520,6 @@ async function loadInstructorLiveClasses() {
         const container = document.getElementById("instructorLiveClasses");
         
         if (res.ok && data.courses && data.courses.length > 0) {
-            // Get sessions for each course
             const allSessions = [];
             
             for (const course of data.courses) {
@@ -570,7 +539,6 @@ async function loadInstructorLiveClasses() {
                 }
             }
             
-// Sort by start_time (most recent first)
             allSessions.sort((a, b) => {
                 const timeA = a.start_time || a.date;
                 const timeB = b.start_time || b.date;
@@ -579,18 +547,15 @@ async function loadInstructorLiveClasses() {
             
             if (allSessions.length > 0) {
                 container.innerHTML = allSessions.slice(0, 10).map(session => {
-                    // Use real local times
                     const startTime = session.start_time || session.date;
                     const endTime = session.end_time;
                     
                     let timeDisplay = '';
                     if (endTime) {
-                        // Ended session - show full date and both start and end times
                         const startDate = new Date(startTime);
                         const endDate = new Date(endTime);
                         timeDisplay = `${startDate.toLocaleDateString()} ${startDate.toLocaleTimeString()} - ${endDate.toLocaleTimeString()}`;
                     } else {
-                        // Active session - show full date and start time
                         timeDisplay = new Date(startTime).toLocaleString();
                     }
                     
@@ -680,17 +645,89 @@ function showInstructorLeaderboard() {
 let selectedChildId = null;
 
 async function loadGuardianDashboard() {
-    // Hide all panels first
     hideAllPanels();
     
-    // Show guardian panels
     document.getElementById("guardianChildrenPanel").style.display = "block";
+    document.getElementById("guardianCoursesPanel").style.display = "block";
     document.getElementById("guardianGradesPanel").style.display = "block";
     document.getElementById("guardianAttendancePanel").style.display = "block";
+    document.getElementById("guardianAssignmentsPanel").style.display = "block";
     document.getElementById("guardianAchievementsPanel").style.display = "block";
     
-    // Load guardian data
     await loadGuardianChildren();
+}
+
+// Search child by email
+async function searchChildByEmail() {
+    const email = document.getElementById("searchChildEmail").value.trim();
+    const resultDiv = document.getElementById("searchChildResult");
+    
+    if (!email) {
+        resultDiv.innerHTML = '<p style="color: #dc3545;">Please enter an email address</p>';
+        return;
+    }
+    
+    resultDiv.innerHTML = '<p>Searching...</p>';
+    
+    try {
+        const res = await fetch(`${API}/guardian/search-student-by-email?email=${encodeURIComponent(email)}`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok && data.students && data.students.length > 0) {
+            resultDiv.innerHTML = data.students.map(student => `
+                <div style="padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>${student.full_name}</strong>
+                        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">${student.email}</p>
+                    </div>
+                    ${student.alreadyLinked 
+                        ? '<span style="color: #28a745; font-weight: bold;">✓ Already Linked</span>' 
+                        : `<button class="primary-btn" onclick="linkChildByEmail('${student.email}')">Connect</button>`
+                    }
+                </div>
+            `).join('');
+        } else {
+            resultDiv.innerHTML = `<p style="color: #dc3545;">✗ ${data.message || 'No student found with this email'}</p>`;
+        }
+        
+    } catch (err) {
+        console.error("Error searching child:", err);
+        resultDiv.innerHTML = '<p style="color: #dc3545;">Error searching for student. Please try again.</p>';
+    }
+}
+
+// Link child by email
+async function linkChildByEmail(email) {
+    if (!confirm("Do you want to link with this student?")) return;
+    
+    try {
+        const res = await fetch(`${API}/guardian/link-by-email`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ email: email })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert("Successfully linked with student!");
+            document.getElementById("searchChildEmail").value = '';
+            document.getElementById("searchChildResult").innerHTML = '';
+            loadGuardianChildren();
+        } else {
+            alert(data.message || "Failed to link");
+        }
+        
+    } catch (err) {
+        console.error("Error linking child:", err);
+        alert("Network error - could not link");
+    }
 }
 
 async function loadGuardianChildren() {
@@ -711,12 +748,11 @@ async function loadGuardianChildren() {
                 </div>
             `).join('');
             
-            // Auto-select first child
             if (!selectedChildId) {
                 selectChild(data.children[0].id, data.children[0].full_name);
             }
         } else {
-            container.innerHTML = "<p>No children linked to your account.</p>";
+            container.innerHTML = "<p>No children linked to your account. Search for a child above to link.</p>";
         }
         
     } catch (err) {
@@ -728,15 +764,44 @@ async function loadGuardianChildren() {
 async function selectChild(childId, childName) {
     selectedChildId = childId;
     
-    // Update header to show selected child
     document.getElementById("welcome").innerText = `Dashboard - ${childName}`;
     
-    // Load child data
     await Promise.all([
+        loadGuardianCourses(childId),
         loadGuardianGrades(childId),
         loadGuardianAttendance(childId),
+        loadGuardianAssignments(childId),
         loadGuardianAchievements(childId)
     ]);
+}
+
+async function loadGuardianCourses(childId) {
+    try {
+        const res = await fetch(`${API}/guardian/child/${childId}/courses`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("guardianCourses");
+        
+        if (res.ok && data.courses && data.courses.length > 0) {
+            container.innerHTML = data.courses.map(course => `
+                <div class="course-card">
+                    <h4>${course.title}</h4>
+                    <p>${course.description || 'No description'}</p>
+                    <p><strong>Teacher:</strong> ${course.teacher}</p>
+                    <span class="category-tag">${course.category || 'General'}</span>
+                    ${course.duration ? `<span class="duration-tag">${course.duration}</span>` : ''}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = "<p>No courses enrolled yet.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading courses:", err);
+        document.getElementById("guardianCourses").innerHTML = "<p>Error loading courses.</p>";
+    }
 }
 
 async function loadGuardianGrades(childId) {
@@ -749,7 +814,6 @@ async function loadGuardianGrades(childId) {
         const container = document.getElementById("guardianGrades");
         
         if (res.ok && data.grades && data.grades.length > 0) {
-            // Show overall grade
             const overall = data.overall;
             
             container.innerHTML = `
@@ -844,6 +908,49 @@ async function loadGuardianAttendance(childId) {
     }
 }
 
+async function loadGuardianAssignments(childId) {
+    try {
+        const res = await fetch(`${API}/guardian/child/${childId}/assignments`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        const container = document.getElementById("guardianAssignments");
+        
+        if (res.ok && data.assignments && data.assignments.length > 0) {
+            container.innerHTML = data.assignments.slice(0, 10).map(assignment => {
+                const statusColors = {
+                    'submitted': '#28a745',
+                    'pending': '#ffc107',
+                    'late': '#dc3545',
+                    'graded': '#17a2b8'
+                };
+                return `
+                    <div class="deadline-item">
+                        <div class="deadline-info">
+                            <h4>${assignment.title}</h4>
+                            <p>${assignment.course_name}</p>
+                            <p style="font-size: 12px; color: #666;">Due: ${assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'N/A'}</p>
+                        </div>
+                        <div class="deadline-date">
+                            <span class="days-left" style="color: ${statusColors[assignment.status] || '#666'}">
+                                ${assignment.status || 'Unknown'}
+                            </span>
+                            ${assignment.grade !== null ? `<span style="display: block; font-size: 12px; margin-top: 5px;">Grade: ${assignment.grade}/${assignment.points}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = "<p>No assignments submitted yet.</p>";
+        }
+        
+    } catch (err) {
+        console.error("Error loading assignments:", err);
+        document.getElementById("guardianAssignments").innerHTML = "<p>Error loading assignments.</p>";
+    }
+}
+
 async function loadGuardianAchievements(childId) {
     try {
         const res = await fetch(`${API}/guardian/child/${childId}/achievements`, {
@@ -912,7 +1019,6 @@ function showGuardianChildren() {
 /* ===== HELPER FUNCTIONS ===== */
 
 function hideAllPanels() {
-    // Student panels
     document.getElementById("studentDeadlinesPanel").style.display = "none";
     document.getElementById("studentAttendanceHistoryPanel").style.display = "none";
     document.getElementById("studentLiveClassesPanel").style.display = "none";
@@ -921,8 +1027,6 @@ function hideAllPanels() {
     document.getElementById("studentAttendancePanel").style.display = "none";
     document.getElementById("browseCoursesPanel").style.display = "none";
 
-    
-    // Instructor panels
     document.getElementById("instructorAnalyticsPanel").style.display = "none";
     document.getElementById("instructorLiveClassesPanel").style.display = "none";
     document.getElementById("instructorLeaderboardPanel").style.display = "none";
@@ -933,11 +1037,11 @@ function hideAllPanels() {
     document.getElementById("courseSessionsPanel").style.display = "none";
     document.getElementById("courseStudentsPanel").style.display = "none";
     
-    // Guardian panels
-
     document.getElementById("guardianChildrenPanel").style.display = "none";
+    document.getElementById("guardianCoursesPanel").style.display = "none";
     document.getElementById("guardianGradesPanel").style.display = "none";
     document.getElementById("guardianAttendancePanel").style.display = "none";
+    document.getElementById("guardianAssignmentsPanel").style.display = "none";
     document.getElementById("guardianAchievementsPanel").style.display = "none";
 }
 
@@ -976,7 +1080,6 @@ function showStudentAttendance() {
     window.location.href = "attendance-scan.html";
 }
 
-// Handle Create Course Form Submission
 const createCourseForm = document.getElementById("createCourseForm");
 if (createCourseForm) {
     createCourseForm.addEventListener("submit", async (e) => {
@@ -1015,15 +1118,12 @@ if (createCourseForm) {
     });
 }
 
-// Load Teacher's Courses
 async function loadMyCourses() {
     if (user.role !== "teacher") return;
 
     try {
         const res = await fetch(`${API}/courses/my-courses`, {
-            headers: { 
-                "Authorization": `Bearer ${token}`
-            }
+            headers: { "Authorization": `Bearer ${token}` }
         });
 
         const data = await res.json();
@@ -1040,12 +1140,11 @@ async function loadMyCourses() {
                         <p>${course.description}</p>
                         <span class="category-tag">${course.category}</span>
                         <span class="duration-tag">${course.duration || 'Not specified'}</span>
-                <div style="margin-top: 15px;">
+                        <div style="margin-top: 15px;">
                             <button class="primary-btn" onclick="startClass('${course.id}')" style="font-size: 12px; padding: 8px 16px;">Start Class</button>
                             <button class="secondary-btn" onclick="viewCourseStudents('${course.id}')" style="font-size: 12px; padding: 8px 16px; margin-left: 5px;">View Students</button>
                             <button class="secondary-btn" onclick="viewCourseSessions('${course.id}')" style="font-size: 12px; padding: 8px 16px; margin-left: 5px;">View Sessions</button>
                         </div>
-
                     </div>
                 `).join('');
             } else {
@@ -1069,7 +1168,6 @@ let attendanceRefreshInterval = null;
 
 const TOKEN_INTERVAL = 40000;
 
-// Start a new class session
 async function startClass(courseId) {
     try {
         const res = await fetch(`${API}/attendance/sessions`, {
@@ -1097,7 +1195,6 @@ async function startClass(courseId) {
     }
 }
 
-// Check for active session on page load
 async function checkActiveSession() {
     if (user.role !== "teacher") return;
     
@@ -1127,7 +1224,6 @@ async function checkActiveSession() {
     }
 }
 
-// Show active session with dynamic QR code
 async function showActiveSession(sessionId) {
     document.getElementById("noActiveSession").style.display = "none";
     document.getElementById("activeSessionInfo").style.display = "block";
@@ -1141,7 +1237,6 @@ async function showActiveSession(sessionId) {
     attendanceRefreshInterval = setInterval(() => refreshAttendance(), 5000);
 }
 
-// Update QR code with new token
 async function updateQRCode(sessionId) {
     try {
         const tokenRes = await fetch(`${API}/attendance/sessions/${sessionId}/qr`, {
@@ -1163,7 +1258,6 @@ async function updateQRCode(sessionId) {
     }
 }
 
-// Update countdown display
 function updateCountdown(expiresIn) {
     const countdownElement = document.getElementById("qrCountdown");
     if (!countdownElement) {
@@ -1190,7 +1284,6 @@ function updateCountdown(expiresIn) {
     }, 1000);
 }
 
-// Refresh attendance list
 async function refreshAttendance() {
     if (!currentSessionId) return;
     
@@ -1221,7 +1314,6 @@ async function refreshAttendance() {
     }
 }
 
-// End current session
 async function endSession() {
     if (!currentSessionId) return;
     
@@ -1257,7 +1349,6 @@ async function endSession() {
     }
 }
 
-// View enrolled students for a course
 async function viewCourseStudents(courseId) {
     hideAllPanels();
     document.getElementById("courseStudentsPanel").style.display = "block";
@@ -1293,9 +1384,7 @@ async function viewCourseStudents(courseId) {
     }
 }
 
-// View course sessions history
 async function viewCourseSessions(courseId) {
-
     hideAllPanels();
     document.getElementById("courseSessionsPanel").style.display = "block";
     
@@ -1324,7 +1413,6 @@ async function viewCourseSessions(courseId) {
     }
 }
 
-// Open attendance scanner (for students)
 function openAttendanceScanner() {
     window.location.href = "attendance-scan.html";
 }
