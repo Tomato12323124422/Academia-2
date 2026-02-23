@@ -326,7 +326,7 @@ router.delete('/courses/:id', adminMiddleware, async (req, res) => {
     }
 });
 
-// GET ALL ENROLLMENTS
+// GET ALL ENROLLMENTS - FIXED
 router.get('/enrollments', adminMiddleware, async (req, res) => {
     try {
         const { course_id, student_id } = req.query;
@@ -346,46 +346,62 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
             return res.status(500).json({ message: enrollError.message });
         }
 
+        // Return empty array if no enrollments
         if (!enrollments || enrollments.length === 0) {
-            console.log('No enrollments found');
             return res.json({ enrollments: [], count: 0 });
         }
 
-        // Filter out any enrollments with null student_id or course_id
-        const validEnrollments = enrollments.filter(e => e.student_id && e.course_id);
+        // Get unique student and course IDs
+        const studentIds = [...new Set(enrollments.map(e => e.student_id).filter(Boolean))];
+        const courseIds = [...new Set(enrollments.map(e => e.course_id).filter(Boolean))];
 
-        const studentIds = [...new Set(validEnrollments.map(e => e.student_id))];
-        const courseIds = [...new Set(validEnrollments.map(e => e.course_id))];
-
+        // Fetch students if we have any
         let studentsData = [];
         if (studentIds.length > 0) {
-            const { data: students } = await supabase
-                .from('users')
-                .select('id, full_name, email')
-                .in('id', studentIds);
-            studentsData = students || [];
+            try {
+                const { data: students } = await supabase
+                    .from('users')
+                    .select('id, full_name, email')
+                    .in('id', studentIds);
+                studentsData = students || [];
+            } catch (e) {
+                console.error('Error fetching students:', e);
+            }
         }
 
+        // Fetch courses if we have any
         let coursesData = [];
         if (courseIds.length > 0) {
-            const { data: courses } = await supabase
-                .from('courses')
-                .select('id, title, teacher_id')
-                .in('id', courseIds);
-            coursesData = courses || [];
+            try {
+                const { data: courses } = await supabase
+                    .from('courses')
+                    .select('id, title, teacher_id')
+                    .in('id', courseIds);
+                coursesData = courses || [];
+            } catch (e) {
+                console.error('Error fetching courses:', e);
+            }
         }
 
+        // Create maps for quick lookup
+        const studentMap = {};
+        studentsData.forEach(s => { studentMap[s.id] = s; });
+        
+        const courseMap = {};
+        coursesData.forEach(c => { courseMap[c.id] = c; });
+
+        // Format enrollments with student and course data
         const formattedEnrollments = enrollments.map(e => ({
             ...e,
-            student: studentsData.find(s => s.id === e.student_id),
-            course: coursesData.find(c => c.id === e.course_id)
-        }));
+            student: studentMap[e.student_id] || null,
+            course: courseMap[e.course_id] || null
+        })).filter(e => e.student && e.course); // Only include enrollments with valid student and course
 
         res.json({ enrollments: formattedEnrollments, count: formattedEnrollments.length });
 
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Error in enrollments endpoint:', err);
+        res.status(500).json({ message: 'Server error: ' + err.message });
     }
 });
 
