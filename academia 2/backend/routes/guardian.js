@@ -36,9 +36,10 @@ router.get('/children', authMiddleware, async (req, res) => {
 
         // Get linked children
         const { data: links, error } = await supabase
-            .from('parent_student_links')
+            .from('parent_student')
             .select(`*, student:users!student_id(id, full_name, email, role)`)
             .eq('parent_id', req.user.id);
+
 
         if (error) {
             return res.status(500).json({ message: error.message });
@@ -91,11 +92,12 @@ router.get('/search-student-by-email', authMiddleware, async (req, res) => {
         // Check if already linked for each student
         const studentsWithLinkStatus = await Promise.all(student.map(async (s) => {
             const { data: existingLink } = await supabase
-                .from('parent_student_links')
+                .from('parent_student')
                 .select('*')
                 .eq('parent_id', req.user.id)
                 .eq('student_id', s.id)
                 .single();
+
 
             return {
                 id: s.id,
@@ -140,11 +142,12 @@ router.post('/link-by-email', authMiddleware, async (req, res) => {
 
         // Check if already linked
         const { data: existingLink } = await supabase
-            .from('parent_student_links')
+            .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
             .eq('student_id', student.id)
             .single();
+
 
         if (existingLink) {
             return res.status(400).json({ message: 'This student is already linked to your account' });
@@ -152,7 +155,7 @@ router.post('/link-by-email', authMiddleware, async (req, res) => {
 
         // Create the link
         const { data: link, error } = await supabase
-            .from('parent_student_links')
+            .from('parent_student')
             .insert([{
                 parent_id: req.user.id,
                 student_id: student.id,
@@ -160,6 +163,7 @@ router.post('/link-by-email', authMiddleware, async (req, res) => {
             }])
             .select()
             .single();
+
 
         if (error) {
             return res.status(500).json({ message: error.message });
@@ -190,7 +194,7 @@ router.get('/child/:childId/courses', authMiddleware, async (req, res) => {
 
         // Verify parent is linked to this child
         const { data: link } = await supabase
-            .from('parent_student_links')
+            .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
             .eq('student_id', req.params.childId)
@@ -237,7 +241,7 @@ router.get('/child/:childId/grades', authMiddleware, async (req, res) => {
 
         // Verify parent is linked to this child
         const { data: link } = await supabase
-            .from('parent_student_links')
+            .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
             .eq('student_id', req.params.childId)
@@ -309,7 +313,7 @@ router.get('/child/:childId/attendance', authMiddleware, async (req, res) => {
 
         // Verify parent is linked to this child
         const { data: link } = await supabase
-            .from('parent_student_links')
+            .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
             .eq('student_id', req.params.childId)
@@ -361,7 +365,7 @@ router.get('/child/:childId/achievements', authMiddleware, async (req, res) => {
 
         // Verify parent is linked to this child
         const { data: link } = await supabase
-            .from('parent_student_links')
+            .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
             .eq('student_id', req.params.childId)
@@ -416,7 +420,7 @@ router.get('/child/:childId/assignments', authMiddleware, async (req, res) => {
 
         // Verify parent is linked to this child
         const { data: link } = await supabase
-            .from('parent_student_links')
+            .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
             .eq('student_id', req.params.childId)
