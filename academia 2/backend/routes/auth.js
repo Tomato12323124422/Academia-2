@@ -65,4 +65,41 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// GET /me - Get current user info from token
+router.get('/me', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        
+        if (!token) {
+            return res.status(401).json({ message: 'No token provided' });
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        const { data: users } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', decoded.id);
+
+        const user = users && users.length > 0 ? users[0] : null;
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({ 
+            user: { 
+                id: user.id, 
+                full_name: user.full_name, 
+                email: user.email,
+                role: user.role 
+            } 
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(401).json({ message: 'Invalid token' });
+    }
+});
+
 module.exports = router;
