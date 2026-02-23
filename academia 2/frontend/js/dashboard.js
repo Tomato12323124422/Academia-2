@@ -251,7 +251,7 @@ if (res.ok && data.sessions && data.sessions.length > 0) {
                 <div class="live-class-item live-now">
                     <div class="live-class-info">
                         <h4>${session.course?.title || 'Unknown Course'}</h4>
-<p>Started: ${startTime ? new Date(startTime).toLocaleTimeString() : '-'}</p>
+                        <p>Started: ${startTime ? new Date(startTime).toLocaleString() : '-'}</p>
                     </div>
                     <div><span class="live-badge">LIVE NOW</span></div>
                 </div>
@@ -486,10 +486,12 @@ async function loadInstructorLiveClasses() {
                     
                     let timeDisplay = '';
                     if (endTime) {
-                        // Ended session - show both start and end times
-                        timeDisplay = `${new Date(startTime).toLocaleTimeString()} - ${new Date(endTime).toLocaleTimeString()}`;
+                        // Ended session - show full date and both start and end times
+                        const startDate = new Date(startTime);
+                        const endDate = new Date(endTime);
+                        timeDisplay = `${startDate.toLocaleDateString()} ${startDate.toLocaleTimeString()} - ${endDate.toLocaleTimeString()}`;
                     } else {
-                        // Active session - show just start time
+                        // Active session - show full date and start time
                         timeDisplay = new Date(startTime).toLocaleString();
                     }
                     
