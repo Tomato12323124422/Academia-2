@@ -3,12 +3,7 @@ const router = express.Router();
 const supabase = require('../utils/db');
 const bcrypt = require('bcrypt');
 
-// JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
-
-// ============================================
-// ADMIN MIDDLEWARE
-// ============================================
 
 const adminMiddleware = async (req, res, next) => {
     try {
@@ -38,11 +33,7 @@ const adminMiddleware = async (req, res, next) => {
     }
 };
 
-// ============================================
-// 1. USER MANAGEMENT (Admin Only)
-// ============================================
-
-// GET ALL USERS (with role filter)
+// GET ALL USERS
 router.get('/users', adminMiddleware, async (req, res) => {
     try {
         const { role, status, search } = req.query;
@@ -64,10 +55,7 @@ router.get('/users', adminMiddleware, async (req, res) => {
             return res.status(500).json({ message: error.message });
         }
 
-        res.json({ 
-            users: data,
-            count: data.length
-        });
+        res.json({ users: data, count: data.length });
 
     } catch (err) {
         console.error(err);
@@ -75,7 +63,7 @@ router.get('/users', adminMiddleware, async (req, res) => {
     }
 });
 
-// CREATE USER (Teacher, Student, or Parent)
+// CREATE USER
 router.post('/users', adminMiddleware, async (req, res) => {
     try {
         const { full_name, email, password, role, phone, date_of_birth, parent_of } = req.body;
@@ -88,7 +76,6 @@ router.post('/users', adminMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Role must be teacher, student, or parent' });
         }
 
-        // Check if email exists
         const { data: existing } = await supabase
             .from('users')
             .select('id')
@@ -98,10 +85,8 @@ router.post('/users', adminMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Email already registered' });
         }
 
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create user
         const { data: user, error } = await supabase
             .from('users')
             .insert([{
@@ -121,28 +106,15 @@ router.post('/users', adminMiddleware, async (req, res) => {
 
         const userId = user[0].id;
 
-        // If creating a parent and parent_of is provided, link to student
         if (role === 'parent' && parent_of) {
-            const { error: linkError } = await supabase
+            await supabase
                 .from('parent_student')
-                .insert([{
-                    parent_id: userId,
-                    student_id: parent_of
-                }]);
-
-            if (linkError) {
-                console.error('Error linking parent to student:', linkError);
-            }
+                .insert([{ parent_id: userId, student_id: parent_of }]);
         }
 
         res.status(201).json({
             message: 'User created successfully',
-            user: {
-                id: userId,
-                full_name,
-                email,
-                role
-            }
+            user: { id: userId, full_name, email, role }
         });
 
     } catch (err) {
@@ -178,10 +150,7 @@ router.patch('/users/:id', adminMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        res.json({
-            message: 'User updated successfully',
-            user: data[0]
-        });
+        res.json({ message: 'User updated successfully', user: data[0] });
 
     } catch (err) {
         console.error(err);
@@ -192,7 +161,6 @@ router.patch('/users/:id', adminMiddleware, async (req, res) => {
 // DELETE USER
 router.delete('/users/:id', adminMiddleware, async (req, res) => {
     try {
-        // Prevent deleting self
         if (req.params.id === req.user.id) {
             return res.status(400).json({ message: 'Cannot delete your own account' });
         }
@@ -214,36 +182,51 @@ router.delete('/users/:id', adminMiddleware, async (req, res) => {
     }
 });
 
-// ============================================
-// 2. COURSE MANAGEMENT (Admin View)
-// ============================================
-
 // GET ALL COURSES WITH STATS
 router.get('/courses', adminMiddleware, async (req, res) => {
     try {
         const { data: courses, error } = await supabase
             .from('courses')
-            .select(`
-                *,
-                teacher:users(id, full_name, email),
-                enrollments:enrollments(count)
-            `)
+            .select('*')
             .order('created_at', { ascending: false });
 
         if (error) {
             return res.status(500).json({ message: error.message });
         }
 
-        // Format response with enrollment counts
+        const teacherIds = [...new Set(courses.map(c => c.teacher_id).filter(Boolean))];
+        const courseIds = courses.map(c => c.id);
+
+        let teachersData = [];
+        if (teacherIds.length > 0) {
+            const { data: teachers } = await supabase
+                .from('users')
+                .select('id, full_name, email')
+                .in('id', teacherIds);
+            teachersData = teachers || [];
+        }
+
+        let enrollmentsData = [];
+        if (courseIds.length > 0) {
+            const { data: enrollments } = await supabase
+                .from('enrollments')
+                .select('course_id')
+                .in('course_id', courseIds);
+            enrollmentsData = enrollments || [];
+        }
+
+        const enrollmentCounts = {};
+        enrollmentsData.forEach(e => {
+            enrollmentCounts[e.course_id] = (enrollmentCounts[e.course_id] || 0) + 1;
+        });
+
         const formattedCourses = courses.map(course => ({
             ...course,
-            enrollment_count: course.enrollments?.[0]?.count || 0
+            teacher: teachersData.find(t => t.id === course.teacher_id),
+            enrollment_count: enrollmentCounts[course.id] || 0
         }));
 
-        res.json({ 
-            courses: formattedCourses,
-            count: courses.length
-        });
+        res.json({ courses: formattedCourses, count: courses.length });
 
     } catch (err) {
         console.error(err);
@@ -251,36 +234,27 @@ router.get('/courses', adminMiddleware, async (req, res) => {
     }
 });
 
-// GET COURSE DETAILS WITH ENROLLED STUDENTS
+// GET COURSE DETAILS
 router.get('/courses/:id', adminMiddleware, async (req, res) => {
     try {
-        // Get course details
         const { data: course, error: courseError } = await supabase
             .from('courses')
-            .select(`
-                *,
-                teacher:users(id, full_name, email)
-            `)
+            .select('*')
             .eq('id', req.params.id);
 
         if (courseError || !course || course.length === 0) {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        // Get enrolled students
         const { data: enrollments, error: enrollError } = await supabase
             .from('enrollments')
-            .select(`
-                *,
-                student:users(id, full_name, email)
-            `)
+            .select('*')
             .eq('course_id', req.params.id);
 
         if (enrollError) {
             return res.status(500).json({ message: enrollError.message });
         }
 
-        // Get sessions
         const { data: sessions, error: sessionError } = await supabase
             .from('sessions')
             .select('*')
@@ -291,9 +265,34 @@ router.get('/courses/:id', adminMiddleware, async (req, res) => {
             return res.status(500).json({ message: sessionError.message });
         }
 
+        const studentIds = [...new Set(enrollments.map(e => e.student_id))];
+        let studentsData = [];
+        if (studentIds.length > 0) {
+            const { data: students } = await supabase
+                .from('users')
+                .select('id, full_name, email')
+                .in('id', studentIds);
+            studentsData = students || [];
+        }
+
+        const formattedEnrollments = enrollments.map(e => ({
+            ...e,
+            student: studentsData.find(s => s.id === e.student_id)
+        }));
+
+        const teacherIds = course[0].teacher_id ? [course[0].teacher_id] : [];
+        let teachersData = [];
+        if (teacherIds.length > 0) {
+            const { data: teachers } = await supabase
+                .from('users')
+                .select('id, full_name, email')
+                .in('id', teacherIds);
+            teachersData = teachers || [];
+        }
+
         res.json({
-            course: course[0],
-            enrollments: enrollments || [],
+            course: { ...course[0], teacher: teachersData.find(t => t.id === course[0].teacher_id) },
+            enrollments: formattedEnrollments,
             sessions: sessions || [],
             stats: {
                 total_students: enrollments?.length || 0,
@@ -327,16 +326,11 @@ router.delete('/courses/:id', adminMiddleware, async (req, res) => {
     }
 });
 
-// ============================================
-// 3. ENROLLMENT MANAGEMENT
-// ============================================
-
 // GET ALL ENROLLMENTS
 router.get('/enrollments', adminMiddleware, async (req, res) => {
     try {
         const { course_id, student_id } = req.query;
         
-        // First get enrollments
         let enrollmentsQuery = supabase
             .from('enrollments')
             .select('*')
@@ -351,11 +345,9 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
             return res.status(500).json({ message: enrollError.message });
         }
 
-        // Get all unique student IDs and course IDs
         const studentIds = [...new Set(enrollments.map(e => e.student_id))];
         const courseIds = [...new Set(enrollments.map(e => e.course_id))];
 
-        // Fetch students
         let studentsData = [];
         if (studentIds.length > 0) {
             const { data: students } = await supabase
@@ -365,7 +357,6 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
             studentsData = students || [];
         }
 
-        // Fetch courses
         let coursesData = [];
         if (courseIds.length > 0) {
             const { data: courses } = await supabase
@@ -375,17 +366,13 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
             coursesData = courses || [];
         }
 
-        // Map student and course data to enrollments
         const formattedEnrollments = enrollments.map(e => ({
             ...e,
             student: studentsData.find(s => s.id === e.student_id),
             course: coursesData.find(c => c.id === e.course_id)
         }));
 
-        res.json({ 
-            enrollments: formattedEnrollments,
-            count: formattedEnrollments.length
-        });
+        res.json({ enrollments: formattedEnrollments, count: formattedEnrollments.length });
 
     } catch (err) {
         console.error(err);
@@ -402,7 +389,6 @@ router.post('/enrollments', adminMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Student ID and Course ID are required' });
         }
 
-        // Check if already enrolled
         const { data: existing } = await supabase
             .from('enrollments')
             .select('id')
@@ -457,20 +443,12 @@ router.delete('/enrollments/:id', adminMiddleware, async (req, res) => {
     }
 });
 
-// ============================================
-// 4. ATTENDANCE REPORTS
-// ============================================
-
 // GET ATTENDANCE BY SESSION
 router.get('/attendance/session/:sessionId', adminMiddleware, async (req, res) => {
     try {
         const { data: attendance, error } = await supabase
             .from('attendance')
-            .select(`
-                *,
-                student:users(id, full_name, email),
-                session:sessions(*, course:courses(title))
-            `)
+            .select('*')
             .eq('session_id', req.params.sessionId)
             .order('marked_at', { ascending: false });
 
@@ -478,10 +456,33 @@ router.get('/attendance/session/:sessionId', adminMiddleware, async (req, res) =
             return res.status(500).json({ message: error.message });
         }
 
-        res.json({
-            attendance: attendance || [],
-            count: attendance?.length || 0
-        });
+        const studentIds = [...new Set(attendance.map(a => a.student_id))];
+        let studentsData = [];
+        if (studentIds.length > 0) {
+            const { data: students } = await supabase
+                .from('users')
+                .select('id, full_name, email')
+                .in('id', studentIds);
+            studentsData = students || [];
+        }
+
+        const sessionIds = [...new Set(attendance.map(a => a.session_id))];
+        let sessionsData = [];
+        if (sessionIds.length > 0) {
+            const { data: sessions } = await supabase
+                .from('sessions')
+                .select('*')
+                .in('id', sessionIds);
+            sessionsData = sessions || [];
+        }
+
+        const formattedAttendance = attendance.map(a => ({
+            ...a,
+            student: studentsData.find(s => s.id === a.student_id),
+            session: sessionsData.find(s => s.id === a.session_id)
+        }));
+
+        res.json({ attendance: formattedAttendance, count: formattedAttendance.length });
 
     } catch (err) {
         console.error(err);
@@ -492,7 +493,6 @@ router.get('/attendance/session/:sessionId', adminMiddleware, async (req, res) =
 // GET ATTENDANCE BY COURSE
 router.get('/attendance/course/:courseId', adminMiddleware, async (req, res) => {
     try {
-        // Get all sessions for this course
         const { data: sessions, error: sessionError } = await supabase
             .from('sessions')
             .select('id')
@@ -508,14 +508,9 @@ router.get('/attendance/course/:courseId', adminMiddleware, async (req, res) => 
             return res.json({ attendance: [], count: 0 });
         }
 
-        // Get attendance for all sessions
         const { data: attendance, error } = await supabase
             .from('attendance')
-            .select(`
-                *,
-                student:users(id, full_name, email),
-                session:sessions(id, date, status)
-            `)
+            .select('*')
             .in('session_id', sessionIds)
             .order('marked_at', { ascending: false });
 
@@ -523,10 +518,22 @@ router.get('/attendance/course/:courseId', adminMiddleware, async (req, res) => 
             return res.status(500).json({ message: error.message });
         }
 
-        res.json({
-            attendance: attendance || [],
-            count: attendance?.length || 0
-        });
+        const studentIds = [...new Set(attendance.map(a => a.student_id))];
+        let studentsData = [];
+        if (studentIds.length > 0) {
+            const { data: students } = await supabase
+                .from('users')
+                .select('id, full_name, email')
+                .in('id', studentIds);
+            studentsData = students || [];
+        }
+
+        const formattedAttendance = attendance.map(a => ({
+            ...a,
+            student: studentsData.find(s => s.id === a.student_id)
+        }));
+
+        res.json({ attendance: formattedAttendance, count: formattedAttendance.length });
 
     } catch (err) {
         console.error(err);
@@ -539,10 +546,7 @@ router.get('/attendance/student/:studentId', adminMiddleware, async (req, res) =
     try {
         const { data: attendance, error } = await supabase
             .from('attendance')
-            .select(`
-                *,
-                session:sessions(*, course:courses(title))
-            `)
+            .select('*')
             .eq('student_id', req.params.studentId)
             .order('marked_at', { ascending: false });
 
@@ -550,10 +554,7 @@ router.get('/attendance/student/:studentId', adminMiddleware, async (req, res) =
             return res.status(500).json({ message: error.message });
         }
 
-        res.json({
-            attendance: attendance || [],
-            count: attendance?.length || 0
-        });
+        res.json({ attendance: attendance || [], count: attendance?.length || 0 });
 
     } catch (err) {
         console.error(err);
@@ -561,28 +562,16 @@ router.get('/attendance/student/:studentId', adminMiddleware, async (req, res) =
     }
 });
 
-// ============================================
-// 5. DASHBOARD STATISTICS
-// ============================================
-
-// GET SYSTEM OVERVIEW STATS
+// GET SYSTEM STATS
 router.get('/stats', adminMiddleware, async (req, res) => {
     try {
-        // Count users by role
         const { data: userCounts, error: userError } = await supabase
             .from('users')
             .select('role', { count: 'exact' });
 
         if (userError) throw userError;
 
-        const counts = {
-            total_users: 0,
-            teachers: 0,
-            students: 0,
-            parents: 0,
-            admins: 0
-        };
-
+        const counts = { total_users: 0, teachers: 0, students: 0, parents: 0, admins: 0 };
         userCounts.forEach(u => {
             counts.total_users++;
             if (u.role === 'teacher') counts.teachers++;
@@ -591,33 +580,21 @@ router.get('/stats', adminMiddleware, async (req, res) => {
             if (u.role === 'admin') counts.admins++;
         });
 
-        // Count courses
-        const { count: totalCourses, error: courseError } = await supabase
+        const { count: totalCourses } = await supabase
             .from('courses')
             .select('*', { count: 'exact', head: true });
 
-        if (courseError) throw courseError;
-
-        // Count enrollments
-        const { count: totalEnrollments, error: enrollError } = await supabase
+        const { count: totalEnrollments } = await supabase
             .from('enrollments')
             .select('*', { count: 'exact', head: true });
 
-        if (enrollError) throw enrollError;
-
-        // Count sessions
-        const { count: totalSessions, error: sessionError } = await supabase
+        const { count: totalSessions } = await supabase
             .from('sessions')
             .select('*', { count: 'exact', head: true });
 
-        if (sessionError) throw sessionError;
-
-        // Count attendance records
-        const { count: totalAttendance, error: attendError } = await supabase
+        const { count: totalAttendance } = await supabase
             .from('attendance')
             .select('*', { count: 'exact', head: true });
-
-        if (attendError) throw attendError;
 
         res.json({
             users: counts,
@@ -638,44 +615,23 @@ router.get('/activity', adminMiddleware, async (req, res) => {
     try {
         const limit = req.query.limit || 20;
 
-        // Recent enrollments
-        const { data: recentEnrollments, error: enrollError } = await supabase
+        const { data: recentEnrollments } = await supabase
             .from('enrollments')
-            .select(`
-                *,
-                student:users(id, full_name),
-                course:courses(id, title)
-            `)
+            .select('*')
             .order('enrolled_at', { ascending: false })
             .limit(limit);
 
-        if (enrollError) throw enrollError;
-
-        // Recent attendance
-        const { data: recentAttendance, error: attendError } = await supabase
+        const { data: recentAttendance } = await supabase
             .from('attendance')
-            .select(`
-                *,
-                student:users(id, full_name),
-                session:sessions(id, course:courses(title))
-            `)
+            .select('*')
             .order('marked_at', { ascending: false })
             .limit(limit);
 
-        if (attendError) throw attendError;
-
-        // Recent sessions
-        const { data: recentSessions, error: sessionError } = await supabase
+        const { data: recentSessions } = await supabase
             .from('sessions')
-            .select(`
-                *,
-                course:courses(id, title),
-                teacher:users(id, full_name)
-            `)
+            .select('*')
             .order('created_at', { ascending: false })
             .limit(limit);
-
-        if (sessionError) throw sessionError;
 
         res.json({
             recent_enrollments: recentEnrollments || [],
