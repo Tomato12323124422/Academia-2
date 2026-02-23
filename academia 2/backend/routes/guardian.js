@@ -34,23 +34,52 @@ router.get('/children', authMiddleware, async (req, res) => {
             return res.status(403).json({ message: 'Only parents can access this' });
         }
 
-        // Get linked children
+        // Get linked children - use simple query without join
         const { data: links, error } = await supabase
             .from('parent_student')
-            .select(`*, student:users!student_id(id, full_name, email, role)`)
+            .select('*')
             .eq('parent_id', req.user.id);
-
 
         if (error) {
             return res.status(500).json({ message: error.message });
         }
 
-        const children = links?.map(link => ({
-            id: link.student?.id,
-            full_name: link.student?.full_name,
-            email: link.student?.email,
-            relationship: link.relationship
-        })) || [];
+        if (!links || links.length === 0) {
+            return res.json({ children: [] });
+        }
+
+        // Get student IDs to fetch
+        const studentIds = links.map(link => link.student_id);
+        
+        // Fetch student details separately
+        const { data: students, studentError } = await supabase
+            .from('users')
+            .select('id, full_name, email, role')
+            .in('id', studentIds);
+
+        if (studentError) {
+            console.error('Error fetching students:', studentError);
+            return res.status(500).json({ message: studentError.message });
+        }
+
+        // Create a map for quick lookup
+        const studentMap = {};
+        if (students) {
+            students.forEach(student => {
+                studentMap[student.id] = student;
+            });
+        }
+
+        // Combine the data
+        const children = links.map(link => {
+            const student = studentMap[link.student_id];
+            return {
+                id: student?.id || link.student_id,
+                full_name: student?.full_name || 'Unknown',
+                email: student?.email || 'Unknown',
+                relationship: link.relationship
+            };
+        });
 
         res.json({ children });
 
