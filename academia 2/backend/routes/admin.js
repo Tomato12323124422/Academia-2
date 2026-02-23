@@ -345,6 +345,10 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
             return res.status(500).json({ message: enrollError.message });
         }
 
+        if (!enrollments || enrollments.length === 0) {
+            return res.json({ enrollments: [], count: 0 });
+        }
+
         const studentIds = [...new Set(enrollments.map(e => e.student_id))];
         const courseIds = [...new Set(enrollments.map(e => e.course_id))];
 
