@@ -23,11 +23,13 @@ if (user.role === "student") {
     menu.innerHTML = `
         <li onclick="showStudentDashboard()">📊 Dashboard</li>
         <li onclick="showStudentCourses()">📚 My Courses</li>
+        <li onclick="showBrowseCourses()">🔍 Browse Courses</li>
         <li onclick="showStudentDeadlines()">📝 Assignments</li>
         <li onclick="showStudentAttendance()">📋 Attendance</li>
         <li onclick="showStudentLiveClasses()">📹 Live Classes</li>
         <li onclick="showStudentLeaderboard()">🏆 Leaderboard</li>
     `;
+
     // Load student dashboard data
     loadStudentDashboard();
 }
@@ -331,6 +333,103 @@ function showStudentLeaderboard() {
     document.getElementById("studentLeaderboardPanel").style.display = "block";
     loadStudentLeaderboard();
 }
+
+/* ===== BROWSE COURSES FUNCTIONS ===== */
+
+let allAvailableCourses = [];
+let enrolledCourseIds = new Set();
+
+async function loadBrowseCourses() {
+    try {
+        // Load all available courses
+        const coursesRes = await fetch(`${API}/courses`);
+        const coursesData = await coursesRes.json();
+        allAvailableCourses = coursesData.courses || [];
+
+        // Load enrolled courses to mark them
+        const enrolledRes = await fetch(`${API}/courses/enrolled`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const enrolledData = await enrolledRes.json();
+        
+        enrolledCourseIds.clear();
+        if (enrolledData.courses) {
+            enrolledData.courses.forEach(c => enrolledCourseIds.add(c.id));
+        }
+
+        renderBrowseCourses();
+
+    } catch (err) {
+        console.error("Error loading courses:", err);
+        document.getElementById("browseCoursesList").innerHTML = "<p>Error loading courses. Please try again.</p>";
+    }
+}
+
+function renderBrowseCourses() {
+    const container = document.getElementById("browseCoursesList");
+
+    if (allAvailableCourses.length === 0) {
+        container.innerHTML = "<p>No courses available yet.</p>";
+        return;
+    }
+
+    container.innerHTML = allAvailableCourses.map(course => {
+        const isEnrolled = enrolledCourseIds.has(course.id);
+        return `
+            <div class="course-card">
+                <h4>${course.title}</h4>
+                <p>${course.description || 'No description'}</p>
+                <span class="category-tag">${course.category || 'General'}</span>
+                ${course.duration ? `<span class="duration-tag">${course.duration}</span>` : ''}
+                <div style="margin-top: 15px;">
+                    ${isEnrolled 
+                        ? '<span style="color: #28a745; font-weight: bold;">✓ Already Enrolled</span>' 
+                        : `<button class="primary-btn" onclick="enrollInCourse('${course.id}')">Enroll Now</button>`
+                    }
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function enrollInCourse(courseId) {
+    if (!confirm("Do you want to enroll in this course?")) return;
+
+    try {
+        const res = await fetch(`${API}/courses/${courseId}/enroll`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            alert("Successfully enrolled in the course!");
+            enrolledCourseIds.add(courseId);
+            renderBrowseCourses();
+            // Also refresh my courses list if visible
+            if (document.getElementById("studentCoursesPanel").style.display === "block") {
+                loadStudentCoursesList();
+            }
+        } else {
+            alert(data.message || "Failed to enroll");
+        }
+
+    } catch (err) {
+        console.error("Error enrolling:", err);
+        alert("Network error - could not enroll");
+    }
+}
+
+function showBrowseCourses() {
+    hideAllPanels();
+    document.getElementById("browseCoursesPanel").style.display = "block";
+    loadBrowseCourses();
+}
+
 
 /* ===== INSTRUCTOR DASHBOARD FUNCTIONS ===== */
 
@@ -820,6 +919,8 @@ function hideAllPanels() {
     document.getElementById("studentLeaderboardPanel").style.display = "none";
     document.getElementById("studentCoursesPanel").style.display = "none";
     document.getElementById("studentAttendancePanel").style.display = "none";
+    document.getElementById("browseCoursesPanel").style.display = "none";
+
     
     // Instructor panels
     document.getElementById("instructorAnalyticsPanel").style.display = "none";
