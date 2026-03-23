@@ -322,7 +322,7 @@ router.post('/attendance/register', async (req, res) => {
         }
 
         // Verify session exists and is active
-        const sessionIdInt = parseInt(sessionId);
+const sessionIdInt = parseInt(sessionId);
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
             .select('*')
