@@ -164,7 +164,7 @@ router.get('/sessions/:id/qr', authMiddleware, async (req, res) => {
         // Generate dynamic QR code with rotating token
         // Point to frontend page where students will mark attendance
         const token = generateToken();
-        const qrData = `${SERVER_URL}/attendance-scan-result.html?session=${req.params.id}&token=${token}`;
+        const qrData = `${SERVER_URL}/attendance-form.html?session=${req.params.id}&token=${token}`;
         const qrCodeDataUrl = await QRCode.toDataURL(qrData);
 
 
@@ -291,7 +291,7 @@ router.post('/attendance', authMiddleware, async (req, res) => {
         const { data: existingAttendance, error: checkError } = await supabase
             .from('attendance')
             .select('*')
-            .eq('session_id', session_id)
+            .eq('session_id', sessionIdNum)
             .eq('student_id', req.user.id);
 
         if (existingAttendance && existingAttendance.length > 0) {
@@ -302,11 +302,12 @@ router.post('/attendance', authMiddleware, async (req, res) => {
         const { data, error } = await supabase
             .from('attendance')
             .insert([{
-                session_id,
+                session_id: sessionIdNum,
                 student_id: req.user.id,
                 status: 'present',
                 marked_at: new Date().toISOString()
             }]);
+
 
         if (error) {
             return res.status(500).json({ message: error.message });
@@ -373,7 +374,7 @@ const sessionIdNum = parseInt(sessionId, 10);
         const { data, error } = await supabase
             .from('attendance')
             .insert([{
-                session_id: sessionIdInt,
+                session_id: sessionIdNum,
                 name: name,
                 reg_no: regNo,
                 status: 'present',
@@ -768,11 +769,11 @@ router.post('/scan/mark', async (req, res) => {
         
         // If name and regNo provided (manual entry)
         if (name && regNo) {
-            // Check for duplicate
+        // Check for duplicate
             const { data: existing } = await supabase
                 .from('attendance')
                 .select('*')
-                .eq('session_id', session_id)
+                .eq('session_id', sessionIdInt)
                 .eq('reg_no', regNo);
             
             if (existing && existing.length > 0) {
@@ -783,7 +784,7 @@ router.post('/scan/mark', async (req, res) => {
             const { data, error } = await supabase
                 .from('attendance')
                 .insert([{
-                    session_id,
+                    session_id: sessionIdInt,
                     name: name,
                     reg_no: regNo,
                     status: 'present',

@@ -25,10 +25,10 @@ console.log('Attempting to serve static from:', path.join(__dirname, '../fronten
 console.log('Absolute path:', path.resolve(__dirname, '../frontend'));
 
 // Serve static files from frontend directory at root
-app.use(express.static(path.join(__dirname, '../frontend')));
-
-// Also try serving from current working directory as fallback
 app.use(express.static(path.join(process.cwd(), 'frontend')));
+
+// Serve from academia 2/frontend for Render
+app.use(express.static(path.join(process.cwd(), 'academia 2/frontend')));
 
 
 // API Routes

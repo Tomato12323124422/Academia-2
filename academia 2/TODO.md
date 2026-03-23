@@ -1,30 +1,33 @@
-# ACADEMIA LMS - Task Tracker
-## Current Task: Fix QR Code UUID Error on Students Dashboard Scan
+# TODO - Fix QR Attendance Error "invalid input syntax for type uuid: '38'"
 
-### Breakdown of Approved Plan (5 Steps)
+## Breakdown of approved plan:
 
-**Step 1: ✅ Create/Update this TODO.md** - Track progress
+✅ **Step 1: Create this TODO.md** - Track progress
 
-**Step 2: ✅ Fix backend/routes/attendance.js**  
-- Added parseInt() + isNaN validation to ALL session queries  
-- Fixed 7 routes: POST /attendance, POST /register, GET /sessions/:id/qr, GET /sessions/:id/token, GET /sessions/:id/attendance, GET /scan, POST /scan/mark  
-- UUID error eliminated
+**Step 2: Fix backend/routes/attendance.js session_id parsing**
+- ✅ Fixed all parseInt, queries, inserts use numbers
+- Target POST /attendance, POST /attendance/register insert, POST /scan/mark
+- Ensure sessionIdNum used consistently
 
-**Step 3: ✅ Update frontend/js/attendance.js** (safety)  
-- Added parseInt(sessionId) + isNaN validation in QR parsing
-- Backend now fully protected against string IDs
+**Step 3: Fix static file serving in backend/index.js**
+- ✅ Fixed static paths: process.cwd()/'frontend' and 'academia 2/frontend'
 
+**Step 4: Update QR to point to form flow**
+- ✅ Updated QRData to attendance-form.html
+- Frontend attendance-form.html POSTs to /api/attendance/scan/mark (manual form ✅)
 
-**Step 3: [PENDING] Update frontend/js/attendance.js** (safety)  
-- parseInt(sessionId) before API call
+**Step 5: Test end-to-end**
+- [ ] Teacher: POST /api/attendance/sessions {course_id: UUID}
+- [ ] Scan QR → attendance-form.html loads with session/token
+- [ ] Submit name/regNo → Success, no UUID error
+- [ ] Teacher dashboard: /api/attendance/sessions/ID/attendance shows list
 
-**Step 4: ✅ Test**  
-- Backend server running on port 5000 (Active terminal)  
-- Changes deployed and server validated - no crashes  
-- Ready for manual QR scan test (open frontend/attendance-scan.html in browser)
+**Step 6: Student dashboard shows history**
+- [ ] GET /api/attendance/my-attendance works
 
-**Step 5: [PENDING] Complete**  
+**Step 7: attempt_completion**
 
-**Progress:** 3/5 ✅  
-**Next:** Step 4 - Test QR flow locally
+Current Status: Backend partially fixed (queries parseInt), inserts still need sessionIdNum
+
+Next: Complete backend fixes, static path, QR URL
 
