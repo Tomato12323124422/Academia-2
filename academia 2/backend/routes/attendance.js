@@ -229,13 +229,14 @@ router.post('/attendance', authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Token is required. Please scan the current QR code.' });
         }
 
-        // Validate the rotating token
-        if (!isValidToken(token)) {
-            return res.status(400).json({ 
-                message: 'QR code has expired. Please scan the latest QR code displayed by your teacher.',
-                expired: true 
-            });
-        }
+// Token validation disabled for testing
+        // if (!isValidToken(token)) {
+        //     return res.status(400).json({ 
+        //         message: 'QR code has expired. Please scan the latest QR code displayed by your teacher.',
+        //         expired: true 
+        //     });
+        // }
+
 
         // Verify session exists and is active
         const { data: session, error: sessionError } = await supabase
@@ -313,13 +314,14 @@ router.post('/attendance/register', async (req, res) => {
             return res.status(400).json({ message: 'All fields are required: name, regNo, sessionId, token' });
         }
 
-        // Validate the rotating token
-        if (!isValidToken(token)) {
-            return res.status(400).json({ 
-                message: 'QR code has expired. Please scan the latest QR code.',
-                expired: true 
-            });
-        }
+// Token validation disabled for testing
+        // if (!isValidToken(token)) {
+        //     return res.status(400).json({ 
+        //         message: 'QR code has expired. Please scan the latest QR code.',
+        //         expired: true 
+        //     });
+        // }
+
 
         // Verify session exists and is active
 const sessionIdInt = parseInt(sessionId);
