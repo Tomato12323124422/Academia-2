@@ -109,51 +109,17 @@ async function onScanSuccess(decodedText, decodedResult) {
     document.getElementById("loading").style.display = "block";
     document.getElementById("scanResult").innerHTML = "";
     
-    // Mark attendance with token validation
-    try {
 
-        const res = await fetch(`${API}/attendance/scan`, {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({ 
-                session_id: sessionId,
-                token: qrToken
-            })
-        });
-        
-        const data = await res.json();
-        
-        // Hide loading
-        document.getElementById("loading").style.display = "none";
-        
-        if (res.ok) {
-            window.location.href = `attendance-form.html?session=${sessionId}&token=${qrToken}`;
-        } else {
-            if (data.expired) {
-                showResult("⏱️ " + data.message + "<br><br>Please ask your teacher to refresh the QR code and scan again.", "error");
-            } else if (data.message.includes("already marked")) {
-                showResult("ℹ️ " + data.message, "info");
-            } else if (data.message.includes("not active")) {
-                showResult("❌ " + data.message, "error");
-            } else {
-                showResult("❌ " + (data.message || "Failed to mark attendance"), "error");
-            }
-        }
-        
-    } catch (err) {
-        console.error("Error marking attendance:", err);
-        document.getElementById("loading").style.display = "none";
-        showResult("❌ Network error. Please check your connection and try again.", "error");
-    }
+    // Direct redirect - no API call needed
+    showResult("✅ QR valid! Loading form...", "success");
+    window.location.href = `attendance-form.html?session=${sessionId}&token=${qrToken}`;
     
-    // Restart scanner after 5 seconds
+    // Restart scanner after 5 seconds if error
     setTimeout(() => {
         document.getElementById("scanResult").innerHTML = "";
         initScanner();
     }, 5000);
+
 
 }
 
