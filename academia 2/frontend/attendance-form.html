@@ -265,22 +265,10 @@
         }
         
         try {
-            // Verify the session and token
-            const res = await fetch(`${API}/attendance/scan?session=${sessionId}&token=${token}`);
-            const data = await res.json();
-            
-            if (!res.ok) {
-                if (data.expired) {
-                    showExpired();
-                } else {
-                    showError(data.message || "Failed to verify session");
-                }
-                return;
-            }
-            
-            sessionData = data;
-            document.getElementById('courseName').textContent = data.course || 'Unknown Course';
+// Skip API call - assume QR valid, show form
+            document.getElementById('courseName').textContent = 'Class Session';
             showForm();
+
             
         } catch (err) {
             console.error(err);
@@ -301,18 +289,19 @@
         }
         
         try {
-            const res = await fetch(`${API}/attendance/scan/mark`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    token: token,
-                    name: name,
-                    regNo: regNo
-                })
-            });
+        const res = await fetch(`${API}/attendance/attendance/register`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: name,
+                regNo: regNo,
+                sessionId: sessionId,
+                token: token
+            })
+        });
+
             
             const data = await res.json();
             
