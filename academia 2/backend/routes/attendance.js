@@ -393,15 +393,14 @@ router.post('/attendance/register', async (req, res) => {
 // GET SESSION ATTENDANCE (Teacher only)
 router.get('/sessions/:id/attendance', authMiddleware, async (req, res) => {
     try {
-        const sessionIdNum = parseInt(req.params.id, 10);
-        if (isNaN(sessionIdNum)) {
-            return res.status(400).json({ message: 'Invalid session ID format' });
-        }
+
+        const sessionId = req.params.id;
         // Get session details
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
             .select('*')
-            .eq('id', sessionIdNum);
+            .eq('id', sessionId);
+
 
 
         if (sessionError || !session || session.length === 0) {
@@ -415,13 +414,12 @@ router.get('/sessions/:id/attendance', authMiddleware, async (req, res) => {
 
 
         // Get attendance records
+
         const { data: attendance, error } = await supabase
             .from('attendance')
-            .select(`
-                *,
-                student:users(id, full_name, email)
-            `)
-            .eq('session_id', sessionIdNum)
+            .select('*')
+            .eq('session_id', sessionId)
+
             .order('marked_at', { ascending: false });
 
 
@@ -674,13 +672,13 @@ router.get('/scan', async (req, res) => {
         }
         
         // Convert sessionId to integer for database query
-        const sessionIdInt = parseInt(sessionId, 10);
-        
+
         // Check if session exists and is active
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
             .select('*, courses(title)')
-            .eq('id', sessionIdInt)
+            .eq('id', sessionId)
+
             .eq('status', 'active');
         
         if (sessionError || !session || session.length === 0) {
@@ -720,13 +718,13 @@ router.post('/scan/mark', async (req, res) => {
         }
         
         // Convert session_id to integer for database query
-        const sessionIdInt = parseInt(session_id, 10);
-        
+
         // Check if session exists and is active
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
             .select('*')
-            .eq('id', sessionIdInt)
+            .eq('id', session_id)
+
             .eq('status', 'active');
         
         if (sessionError || !session || session.length === 0) {
