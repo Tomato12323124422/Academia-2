@@ -335,7 +335,7 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
         let query = supabase
             .from('enrollments')
             .select('*')
-            .order('enrolled_at', { ascending: false });
+            .order('created_at', { ascending: false });
 
         if (course_id) query = query.eq('course_id', course_id);
         if (student_id) query = query.eq('student_id', student_id);
