@@ -114,12 +114,58 @@ router.get('/course/:courseId', authMiddleware, async (req, res) => {
     }
 });
 
-// GET ALL UPCOMING LIVE CLASSES FOR STUDENT
+// GET ALL UPCOMING LIVE CLASSES (Teachers see their courses, students see enrolled)
 router.get('/upcoming', authMiddleware, async (req, res) => {
     try {
-        if (req.user.role !== 'student') {
-            return res.status(403).json({ message: 'Only students can view' });
+        let courseIds = [];
+        
+        if (req.user.role === 'student') {
+            const { data: enrollments, error: enrollError } = await supabase
+                .from('enrollments')
+                .select('course_id')
+                .eq('student_id', req.user.id);
+                
+            if (enrollError) {
+                return res.status(500).json({ message: enrollError.message });
+            }
+            
+            courseIds = enrollments?.map(e => e.course_id) || [];
+        } else if (req.user.role === 'teacher') {
+            const { data: courses, error: courseError } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('teacher_id', req.user.id);
+                
+            if (courseError) {
+                return res.status(500).json({ message: courseError.message });
+            }
+            
+            courseIds = courses?.map(c => c.id) || [];
+        } else {
+            return res.status(403).json({ message: 'Unauthorized role' });
         }
+
+        const { data: liveClasses, error } = await supabase
+            .from('live_classes')
+            .select(`
+                *,
+                course:courses(title)
+            `)
+            .in('course_id', courseIds)
+            .order('scheduled_at', { ascending: true });
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        res.json({ liveClasses: liveClasses || [] });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
 
         // Get enrolled courses
         const { data: enrollments } = await supabase
