@@ -336,7 +336,6 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
             .from('enrollments')
             .select(`
                 *,
-                student:users!enrollments_student_id_fkey(id, full_name, email),
                 course:courses(id, title, teacher_id)
             `)
             .order('enrolled_at', { ascending: false });
@@ -348,6 +347,32 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
         
         console.log('Enrollments data:', enrollments ? enrollments.length : 0);
         console.log('Error:', error);
+        
+        if (error) {
+            console.error('Supabase enrollments error:', error);
+            return res.status(500).json({ message: error.message, details: error });
+        }
+        
+        // Manual student lookup
+        const studentIds = enrollments?.map(e => e.student_id) || [];
+        let students = [];
+        if (studentIds.length > 0) {
+            const { data: studentData, error: studentError } = await supabase
+                .from('users')
+                .select('id, full_name, email')
+                .in('id', studentIds);
+            if (!studentError) {
+                students = studentData || [];
+            }
+        }
+        
+        const studentMap = {};
+        students.forEach(s => studentMap[s.id] = s);
+        
+        const formattedEnrollments = enrollments.map(e => ({
+            ...e,
+            student: studentMap[e.student_id] || null
+        }));
 
         if (error) {
             console.error('Supabase enrollments error:', error);
@@ -355,8 +380,8 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
         }
 
         res.json({ 
-            enrollments: enrollments || [], 
-            count: enrollments ? enrollments.length : 0 
+            enrollments: formattedEnrollments || [], 
+            count: formattedEnrollments ? formattedEnrollments.length : 0 
         });
 
     } catch (err) {
