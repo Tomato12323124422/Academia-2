@@ -1,68 +1,59 @@
-// Academia LMS Service Worker
-const CACHE_NAME = 'academia-lms-v1';
-const urlsToCache = [
-  '/frontend/',
-  '/frontend/index.html',
-  '/frontend/login.html',
-  '/frontend/dashboard.html',
-  '/frontend/CSS/style.css',
-  '/frontend/CSS/auth.css',
-  '/frontend/CSS/dashboard.css',
-  '/frontend/js/auth.js',
-  '/frontend/js/dashboard.js',
-  '/frontend/js/courses.js',
-  '/frontend/js/attendance.js',
-  '/frontend/assets/logo.png',
-  '/frontend/manifest.json'
+// PWA Service Worker - Fixed Offline
+const CACHE_NAME = 'academia-pwa-v1';
+const staticAssets = [
+  './',
+  'index.html',
+  'login.html',
+  'dashboard.html',
+  'CSS/style.css',
+  'CSS/auth.css',
+  'CSS/dashboard.css',
+  'js/auth.js',
+  'js/dashboard.js',
+  'assets/logo.png',
+  'manifest.json',
+  'offline.html'
 ];
 
-// Install event - cache core files
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+self.addEventListener('install', e => {
+  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(staticAssets))
   );
 });
 
-// Fetch event - cache-first for static, network-first for API
-self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(cacheNames => Promise.all(
+      cacheNames.map(name => name !== CACHE_NAME && caches.delete(name))
+    ))
+  );
+});
+
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
   
-  // API calls - network first, cache if offline
-  if (url.origin === location.origin && url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+  // API - network falling back to cache
+  if (url.pathname.startsWith('/api/')) {
+    e.respondWith(
+      fetch(e.request).catch(() => {
+        // Offline API fallback notice in JS
+        return new Response('Offline - API unavailable', {status: 503});
+      })
     );
     return;
   }
   
-  // Static assets - cache first
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request)
-        .then(fetchResponse => {
-          return caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, fetchResponse.clone());
-            return fetchResponse;
-          });
-        })
+  // Static - cache with network update
+  e.respondWith(
+    caches.open(CACHE_NAME).then(cache => 
+      cache.match(e.request).then(cached => 
+        fetch(e.request).then(network => {
+          cache.put(e.request, network.clone());
+          return network;
+        }).catch(() => cached || caches.match('./offline.html'))
       )
-      .catch(() => caches.match('/frontend/dashboard.html')) // Offline fallback
-  );
-});
-
-// Activate - clean old caches
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    )
   );
 });
 

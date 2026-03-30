@@ -1,21 +1,15 @@
-# PWA Conversion TODO
-## [x] 1. Create TODO.md with plan breakdown (done)
+# PWA Redo Progress
 
-## [x] 2. Create PWA files
-- [x] Create frontend/manifest.json
-- [x] Create frontend/sw.js
+## [x] 1. Reset TODO.md
+## [x] 2. Core files created:
+- ✓ manifest.json
+- ✓ sw.js (API cache, offline fallback)
+- ✓ offline.html
 
-## [x] 3. Update HTML files
-- [x] Add manifest link & meta tags to index.html, login.html, dashboard.html
+## [ ] 3. Update HTML (index, login, dashboard)
 
-## [x] 4. Update JS files
-- [x] Register SW in js/dashboard.js
-- [x] Register SW in js/auth.js
+## [ ] 4. Update JS registration
 
-## [x] 5. Generate icons (if needed)
-- Used existing assets/logo.png (covers PWA sizes)
+## [ ] 5. Test/Git
 
-## [ ] 6. Test PWA locally (Lighthouse, DevTools)
-
-## [ ] 7. attempt_completion
 

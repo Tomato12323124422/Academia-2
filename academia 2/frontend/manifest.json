@@ -1,17 +1,19 @@
-
 {
   "name": "Academia LMS",
   "short_name": "Academia",
-  "description": "Learning Management System with QR attendance & gamification",
+  "description": "LMS with QR attendance, gamification, live classes",
+  "scope": "/frontend/",
   "start_url": "/frontend/index.html",
   "display": "standalone",
   "background_color": "#f8f9fa",
   "theme_color": "#667eea",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "assets/logo.png",
       "sizes": "192x192 512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable any"
     }
   ]
 }

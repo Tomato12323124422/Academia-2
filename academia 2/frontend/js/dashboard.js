@@ -1,36 +1,33 @@
-// PWA Service Worker Registration
-if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
-  navigator.serviceWorker.register('/frontend/sw.js')
-    .then(reg => console.log('SW registered:', reg))
-    .catch(err => console.log('SW registration failed:', err));
+// PWA Service Worker Registration (Fixed)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => console.log('PWA SW registered'))
+    .catch(err => console.log('SW reg failed:', err));
 }
 
-// Install prompt
+// Install App Prompt
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  // Optionally show install button
-  const installBtn = document.querySelector('.install-btn');
-  if (installBtn) installBtn.style.display = 'block';
 });
 
-window.addEventListener('appinstalled', () => {
-  console.log('PWA installed');
-  deferredPrompt = null;
-});
+window.addEventListener('appinstalled', () => deferredPrompt = null);
 
-// Offline detection
-window.addEventListener('online', () => console.log('Back online'));
+// Online/Offline
+window.addEventListener('online', () => location.reload());
 window.addEventListener('offline', () => {
-  document.body.classList.add('offline');
-  // Show offline notice if needed
+  const notice = document.createElement('div');
+  notice.innerHTML = '⚠️ Offline Mode';
+  notice.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc3545;color:white;padding:10px;z-index:9999';
+  document.body.appendChild(notice);
 });
 
 // Use local server for development, or production URL
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:5000' 
     : 'https://academia-2-xgdr.onrender.com';
+
 
 const API = `${API_BASE}/api`;
 
