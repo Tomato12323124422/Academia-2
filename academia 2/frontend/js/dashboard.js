@@ -589,36 +589,8 @@ document.getElementById('liveClassForm').addEventListener('submit', async (e) =>
 
 
 async function loadInstructorLeaderboard() {
-    try {
-        const res = await fetch(`${API}/gamification/leaderboard`, {
-            headers: { "Authorization": `Bearer ${token}` }
-        });
-        
-        const data = await res.json();
-        const container = document.getElementById("instructorLeaderboardBody");
-        
-        if (res.ok && data.leaderboard && data.leaderboard.length > 0) {
-            container.innerHTML = data.leaderboard.slice(0, 10).map((entry, index) => {
-                const rankClass = index === 0 ? 'top-1' : index === 1 ? 'top-2' : index === 2 ? 'top-3' : '';
-                const level = Math.floor(Math.sqrt(entry.xp / 100)) + 1;
-                return `
-                    <tr class="${rankClass}">
-                        <td>${index + 1}</td>
-                        <td>${entry.user?.full_name || 'Unknown'}</td>
-                        <td>${entry.xp}</td>
-                        <td>${level}</td>
-                        <td>${entry.badges_earned || 0}</td>
-                    </tr>
-                `;
-            }).join('');
-        } else {
-            container.innerHTML = "<tr><td colspan='5'>No leaderboard data yet.</td></tr>";
-        }
-        
-    } catch (err) {
-        console.error("Error loading leaderboard:", err);
-        document.getElementById("instructorLeaderboardBody").innerHTML = "<tr><td colspan='5'>Error loading leaderboard.</td></tr>";
-    }
+    const container = document.getElementById("instructorLeaderboardBody");
+    container.innerHTML = "<tr><td colspan='5'>Gamification features removed.</td></tr>";
 }
 
 function showInstructorDashboard() {
@@ -637,6 +609,7 @@ function showInstructorLiveClasses() {
     loadInstructorLiveClasses();
 }
 
+// Gamification removed
 function showInstructorLeaderboard() {
     hideAllPanels();
     document.getElementById("instructorLeaderboardPanel").style.display = "block";
