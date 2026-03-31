@@ -106,10 +106,42 @@
             </div>
 
             <!-- Assignments List -->
-            <div id="assignmentsContainer">
+<div id="assignmentsContainer">
                 <div class="no-assignments">
                     <h3>No Course Selected</h3>
                     <p>Select a course from the dropdown above to view and manage assignments.</p>
+                </div>
+            </div>
+
+            <!-- Edit Assignment Modal -->
+            <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>Edit Assignment</h3>
+                        <button onclick="closeEditModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Title *</label>
+                        <input type="text" id="editTitle" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px;">
+                    </div>
+                    <div class="form-group">
+                        <label>Instructions *</label>
+                        <textarea id="editInstructions" rows="5" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; resize: vertical;"></textarea>
+                    </div>
+                    <div class="form-group" style="display: flex; gap: 15px;">
+                        <div style="flex: 1;">
+                            <label>Due Date</label>
+                            <input type="datetime-local" id="editDueDate" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Points</label>
+                            <input type="number" id="editPoints" min="1" value="100" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button onclick="closeEditModal()" class="secondary-btn">Cancel</button>
+                        <button onclick="saveEditAssignment()" class="btn-create">Save Changes</button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -248,9 +280,80 @@
             window.open(`assignments.html?view_submissions=${assignmentId}&teacher_mode=true`, '_blank');
         }
 
-        // Edit assignment (simple for now)
+// Edit assignment modal
+        let editingAssignmentId = null;
+        let editingAssignmentData = null;
+
         function editAssignment(assignmentId) {
-            alert('Edit feature coming soon! (ID: ' + assignmentId + ')');
+            editingAssignmentId = assignmentId;
+            
+            // Load current data
+            fetch(`${API}/assignments/${assignmentId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.assignment) {
+                    editingAssignmentData = data.assignment;
+                    showEditModal();
+                }
+            })
+            .catch(err => console.error(err));
+        }
+
+        function showEditModal() {
+            const modal = document.getElementById('editModal');
+            modal.style.display = 'flex';
+            
+            document.getElementById('editTitle').value = editingAssignmentData.title;
+            document.getElementById('editInstructions').value = editingAssignmentData.description;
+            document.getElementById('editDueDate').value = editingAssignmentData.due_date ? new Date(editingAssignmentData.due_date).toISOString().slice(0,16) : '';
+            document.getElementById('editPoints').value = editingAssignmentData.points || 100;
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            editingAssignmentId = null;
+            editingAssignmentData = null;
+        }
+
+        async function saveEditAssignment() {
+            const title = document.getElementById('editTitle').value;
+            const instructions = document.getElementById('editInstructions').value;
+            const dueDate = document.getElementById('editDueDate').value;
+            const points = parseInt(document.getElementById('editPoints').value) || 100;
+
+            if (!title || !instructions) {
+                alert('Title and instructions are required');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API}/assignments/${editingAssignmentId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        title,
+                        description: instructions,
+                        due_date: dueDate,
+                        points
+                    })
+                });
+
+                if (res.ok) {
+                    alert('Assignment updated successfully!');
+                    closeEditModal();
+                    loadTeacherAssignments(); // Reload list
+                } else {
+                    const error = await res.json();
+                    alert('Error: ' + error.message);
+                }
+            } catch (err) {
+                alert('Network error');
+            }
         }
 
         // Delete assignment
