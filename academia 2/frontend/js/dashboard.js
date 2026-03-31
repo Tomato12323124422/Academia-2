@@ -53,7 +53,6 @@ if (user.role === "student") {
         <li onclick="showStudentDeadlines()">📝 Assignments</li>
         <li onclick="showStudentAttendance()">📋 Attendance</li>
         <li onclick="showStudentLiveClasses()">📹 Live Classes</li>
-        <li onclick="showStudentLeaderboard()">🏆 Leaderboard</li>
     `;
     loadStudentDashboard();
 }
@@ -65,7 +64,6 @@ if (user.role === "teacher") {
         <li onclick="showMyCourses()">📚 My Courses</li>
         <li onclick="showInstructorLiveClasses()">📹 Live Classes</li>
         <li onclick="showInstructorAnalytics()">📈 Analytics</li>
-        <li onclick="showInstructorLeaderboard()">🏆 Leaderboard</li>
         <li onclick="showTeacherSessionPanel()">📱 Attendance QR</li>
         <li onclick="window.location.href='students.html'">👨‍🎓 Students</li>
     `;
@@ -87,7 +85,6 @@ async function loadStudentDashboard() {
     document.getElementById("studentDeadlinesPanel").style.display = "block";
     document.getElementById("studentAttendanceHistoryPanel").style.display = "block";
     document.getElementById("studentLiveClassesPanel").style.display = "block";
-    document.getElementById("studentLeaderboardPanel").style.display = "block";
     document.getElementById("studentCoursesPanel").style.display = "block";
     document.getElementById("studentAttendancePanel").style.display = "block";
     
@@ -96,23 +93,13 @@ async function loadStudentDashboard() {
         loadStudentCoursesList(),
         loadStudentDeadlines(),
         loadStudentAttendanceHistory(),
-        loadStudentLiveClasses(),
-        loadStudentLeaderboard()
+        loadStudentLiveClasses()
     ]);
 }
 
+
 async function loadStudentStats() {
     try {
-        const statsRes = await fetch(`${API}/gamification/stats`, {
-            headers: { "Authorization": `Bearer ${token}` }
-        });
-        
-        if (statsRes.ok) {
-            const statsData = await statsRes.json();
-            document.getElementById("xp").innerText = statsData.stats?.xp || 0;
-            document.getElementById("badges").innerText = statsData.stats?.badges_earned || 0;
-        }
-        
         const coursesRes = await fetch(`${API}/courses/enrolled`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
@@ -132,10 +119,15 @@ async function loadStudentStats() {
             document.getElementById("attendance").innerText = rate + "%";
         }
         
+        // Gamification removed for student dashboard
+        document.getElementById("xp").innerText = "-";
+        document.getElementById("badges").innerText = "-";
+        
     } catch (err) {
         console.error("Error loading student stats:", err);
     }
 }
+
 
 async function loadStudentCoursesList() {
     try {
