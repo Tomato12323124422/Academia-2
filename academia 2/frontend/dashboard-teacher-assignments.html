@@ -241,8 +241,8 @@
             const title = prompt('Assignment Title:');
             if (!title) return;
 
-            const description = prompt('Description:');
-            if (!description) return;
+            const instructions = prompt('Instructions:');
+            if (!instructions) return;
 
             const dueDate = prompt('Due Date (YYYY-MM-DD HH:MM, optional):') || '';
             const points = prompt('Points (default 100):') || 100;
@@ -254,10 +254,10 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({
+                body: JSON.stringify({
                         course_id: courseId,
                         title,
-                        description,
+                        description: instructions,
                         due_date: dueDate,
                         points: parseInt(points)
                     })
@@ -295,7 +295,11 @@
             .then(data => {
                 if (data.assignment) {
                     editingAssignmentData = data.assignment;
-                    showEditModal();
+                    document.getElementById('editTitle').value = data.assignment.title;
+                    document.getElementById('editInstructions').value = data.assignment.description;
+                    document.getElementById('editDueDate').value = data.assignment.due_date ? new Date(data.assignment.due_date).toISOString().slice(0,16) : '';
+                    document.getElementById('editPoints').value = data.assignment.points || 100;
+                    document.getElementById('editModal').style.display = 'flex';
                 }
             })
             .catch(err => console.error(err));
