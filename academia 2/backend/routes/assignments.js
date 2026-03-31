@@ -81,12 +81,76 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
+// GET SINGLE ASSIGNMENT (for edit)
+router.get('/:id', authMiddleware, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('assignments')
+            .select('*')
+            .eq('id', req.params.id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') {
+            return res.status(500).json({ message: error.message });
+        }
+
+        if (!data) {
+            return res.status(404).json({ message: 'Assignment not found' });
+        }
+
+        res.json({ assignment: data });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// DELETE ASSIGNMENT (Teacher only)
+router.delete('/:id', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'teacher') {
+            return res.status(403).json({ message: 'Only teachers can delete assignments' });
+        }
+
+        // Verify teacher owns the assignment's course
+        const { data: assignment, error: assignError } = await supabase
+            .from('assignments')
+            .select('*, course:courses(teacher_id)')
+            .eq('id', req.params.id)
+            .single();
+
+        if (assignError || !assignment) {
+            return res.status(404).json({ message: 'Assignment not found' });
+        }
+
+        if (assignment.course.teacher_id !== req.user.id) {
+            return res.status(403).json({ message: 'You can only delete your own assignments' });
+        }
+
+        const { error } = await supabase
+            .from('assignments')
+            .delete()
+            .eq('id', req.params.id);
+
+        if (error) {
+            return res.status(500).json({ message: error.message });
+        }
+
+        res.json({ message: 'Assignment deleted successfully' });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET ASSIGNMENTS FOR A COURSE
 router.get('/course/:courseId', authMiddleware, async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('assignments')
-            .select('*')
+            .select('*, submission_count:(submissions(assignment_id))')
             .eq('course_id', req.params.courseId)
             .order('due_date', { ascending: true });
 
@@ -94,7 +158,13 @@ router.get('/course/:courseId', authMiddleware, async (req, res) => {
             return res.status(500).json({ message: error.message });
         }
 
-        res.json({ assignments: data });
+        // Add submission count to each assignment
+        const assignments = data.map(assignment => ({
+            ...assignment,
+            submission_count: assignment.submission_count ? assignment.submission_count.length : 0
+        }));
+
+        res.json({ assignments });
 
     } catch (err) {
         console.error(err);

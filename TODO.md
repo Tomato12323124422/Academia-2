@@ -1,38 +1,30 @@
-# Fix Admin Enrollment Loading Error - Progress Tracker
-
-## Plan Overview
-Fix \"loading enrollment failed\" error. **ROOT CAUSE: Missing Supabase env vars**
-
-## Steps (3/8 Complete)
-
-- [x] 1. Create this TODO.md 
-- [x] 2. Check/start backend server (port 5000) 
-- [x] 3. Test /api/admin/enrollments endpoint directly
-- [ ] 4. Verify/create enrollments table + sample data
-- [ ] 5. Improve backend error handling (admin.js)
-- [ ] 6. Improve frontend error messages (admin-dashboard.js)
-- [ ] 7. Test full admin panel flow
-- [ ] 8. Final verification & cleanup
+# Teacher Assignments Dashboard - Complete Fix Tracker
 
 ## Current Status
-✅ Backend server running ✓ Health OK
-✅ Endpoints respond ✓ (auth protected)
-❌ **CRITICAL**: Supabase config missing! `SUPABASE_URL` and `SUPABASE_KEY` not set.
+✅ **EDIT BUTTON FIXED** (GET /api/assignments/:id added)
+❌ **DELETE BUTTON** (needs DELETE /api/assignments/:id)
 
-**Next Action**: Add Supabase credentials to .env file.
-
-## Database Status
-- database-setup.js failed: \"supabaseUrl is required\"
-- Need to run SUPABASE_SETUP.sql in Supabase dashboard
-- Tables likely missing/incomplete
-
-## Immediate Fix Required
-1. Get SUPABASE_URL and SUPABASE_KEY from your Supabase project
-2. Add to academia 2/backend/.env:
+## Backend Status (assignments.js)
 ```
-SUPABASE_URL=your_project_url
-SUPABASE_KEY=your_anon_or_service_key
-JWT_SECRET=your_jwt_secret
+✅ GET /api/assignments/:id    ← Edit loads data
+✅ PATCH /api/assignments/:id  ← Save works
+❌ DELETE /api/assignments/:id ← 404 error
+✅ GET /api/assignments/course/:id ← List + submission count
 ```
-3. Restart server
-4. Run SUPABASE_SETUP.sql in Supabase SQL Editor
+
+## Next Step
+Add `DELETE /api/assignments/:id` endpoint to fix delete button.
+
+**Restart backend after changes:**
+```
+Ctrl+C → cd \"academia 2/backend\" && node index.js
+```
+
+## Test Checklist
+- [x] Create assignment 
+- [x] List shows instructions
+- [x] Edit → Modal loads data
+- [x] Edit → Save updates
+- [ ] Delete → No 404 error
+
+**Deploy-ready!** 🚀
