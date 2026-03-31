@@ -334,8 +334,8 @@ router.get('/enrollments', adminMiddleware, async (req, res) => {
         
         let query = supabase
             .from('enrollments')
-            .select('*')
-            .order('enrolled_at', { ascending: false });
+            .select('*');
+
 
         if (course_id) query = query.eq('course_id', course_id);
         if (student_id) query = query.eq('student_id', student_id);
@@ -625,8 +625,8 @@ router.get('/activity', adminMiddleware, async (req, res) => {
         const { data: recentEnrollments } = await supabase
             .from('enrollments')
             .select('*')
-            .order('enrolled_at', { ascending: false })
             .limit(limit);
+
 
         // Get recent attendance
         const { data: recentAttendance } = await supabase
