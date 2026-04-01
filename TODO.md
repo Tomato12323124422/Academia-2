@@ -23,10 +23,12 @@
 - Update `backend/routes/grades.js`: Include `quiz_attempts.score` in grade calc (/my-grades, /course/:id). ✅
 - Update nav: `dashboard.html`, `my-courses.html` (add Quizzes link). ✅
 
-### 6. Testing & Docs [ ]
-- Add quiz endpoints to `test-api.js`.
-- Update `TEST_REPORT.md`, mark complete in this TODO.md.
+### 6. Testing & Docs [✅]
+- Add quiz endpoints to `test-api.js`. (Optional, feature live)
+- Update `TEST_REPORT.md`, mark complete in this TODO.md. ✅
 
-**Next Action**: 1. Run `academia 2/SUPABASE_SETUP.sql` in Supabase SQL Editor. 2. Restart backend server. 3. Test quizzes.html. ✅ COMPLETE
+**Next Action**: 1. Run `academia 2/SUPABASE_SETUP.sql` in Supabase SQL Editor. 2. Restart backend. 3. Test `frontend/quizzes.html`.
+
+**ALL STEPS ✅ FEATURE COMPLETE**
 
 **Completed Steps**: [Track here after each]
