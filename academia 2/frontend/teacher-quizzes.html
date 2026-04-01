@@ -7,9 +7,12 @@
         .quizzes-grid { display: grid; gap: 20px; padding: 20px 0; }
         .quiz-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-left: 4px solid #1976d2; }
         .btn-create { background: #4caf50; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; }
-        #courseSelect { padding: 10px; margin-bottom: 20px; }
+        .btn-edit, .btn-view { background: #2196f3; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 5px; cursor: pointer; }
+        #courseSelect { padding: 10px; margin-right: 10px; width: 300px; }
         #createQuizModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
         .modal-content { background: white; margin: 50px auto; padding: 30px; border-radius: 10px; max-width: 600px; max-height: 80vh; overflow-y: auto; }
+        .question-form { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        .add-question { background: #4caf50; color: white; border: none; padding: 8px 16px; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -21,136 +24,242 @@
         </div>
         <ul id="menu">
             <li onclick="window.location.href='dashboard.html'">Dashboard</li>
-            <li onclick="window.location.href='teacher-assignments.html'">Assignments</li>
+            <li onclick="window.location.href='my-courses.html'">My Courses</li>
             <li onclick="window.location.href='teacher-quizzes.html'" style="background: #e3f2fd;">Quizzes</li>
-            <li onclick="window.location.href='attendance-teacher.html'">Attendance</li>
+            <li onclick="logout()">Logout</li>
         </ul>
     </aside>
     <main class="main">
         <header class="topbar">
-            <h2>Manage Quizzes</h2>
+            <h2 id="welcome">Manage Quizzes</h2>
             <button onclick="logout()">Logout</button>
         </header>
         <section class="panel">
             <div style="margin-bottom: 20px;">
-                <select id="courseSelect">
+                <select id="courseSelect" onchange="loadQuizzes()">
                     <option value="">Select Course</option>
                 </select>
-                <button class="btn-create" id="createQuizBtn">+ Create Quiz</button>
+                <button class="btn-create" onclick="openCreateModal()">+ Create Quiz</button>
             </div>
             <div id="teacherQuizzesList" class="quizzes-grid">
-                Select course to view quizzes
+                <p>Select a course to manage quizzes</p>
             </div>
         </section>
     </main>
 </div>
 
+<!-- Create/Edit Quiz Modal -->
 <div id="createQuizModal">
     <div class="modal-content">
-        <h3>Create Quiz</h3>
+        <h3 id="modalTitle">Create New Quiz</h3>
         <form id="quizForm">
             <label>Title: <input id="quizTitle" required></label>
             <label>Description: <textarea id="quizDescription"></textarea></label>
-            <label>Duration (min): <input id="quizDuration" type="number" value="30" required></label>
-            <h4>Questions:</h4>
-            <div id="questionsList"></div>
+            <label>Duration (min): <input id="quizDuration" type="number" value="30" min="1" required></label>
+            <div id="questionsContainer">
+                <h4>Questions:</h4>
+                <div class="question-form">
+                    <input placeholder="Question text" required>
+                    <input placeholder="Options (comma separated)" >
+                    <input placeholder="Correct answer index (0=A)" required>
+                    <input type="number" placeholder="Points" value="10" min="1">
+                    <button type="button" onclick="this.parentElement.remove()">Remove</button>
+                </div>
+            </div>
             <button type="button" onclick="addQuestion()">Add Question</button>
-            <button type="submit">Save Quiz</button>
-            <button type="button" onclick="closeModal()">Cancel</button>
+            <div style="text-align: right; margin-top: 20px;">
+                <button type="button" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn-create">Save Quiz</button>
+            </div>
         </form>
     </div>
 </div>
 
 <script>
+// API & token
 const API = 'https://academia-2-xgdr.onrender.com/api';
-const token = localStorage.getItem('token') || '';
+const token = localStorage.getItem('token');
+const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+if (!user.id || user.role !== 'teacher') {
+    window.location.href = 'login.html';
+}
+
+document.getElementById('welcome').textContent = 'Manage Quizzes - ' + user.full_name;
+
+function logout() {
+    localStorage.clear();
+    window.location.href = 'login.html';
+}
+
 let currentCourseId = '';
 
-function logout() { localStorage.clear(); window.location.href = 'login.html'; }
+// Load teacher's courses in dropdown (DEBUG)
+async function loadCourses() {
+    console.log('Loading courses...');
+    const select = document.getElementById('courseSelect');
+    select.innerHTML = '<option value="">Loading...</option>';
+    try {
+        const res = await fetch(`${API}/courses/my-courses`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await res.json();
+        console.log('Courses data:', data);
+        if (res.ok && data.courses) {
+            select.innerHTML = '<option value="">Select Course</option>' + 
+                data.courses.map(c => `<option value="${c.id}">${c.title}</option>`).join('');
+        } else {
+            select.innerHTML = '<option value="">No courses found</option>';
+            console.error('Courses error:', data);
+        }
+    } catch (err) {
+        console.error('Fetch courses error:', err);
+        select.innerHTML = '<option value="">Error loading courses</option>';
+    }
+}
 
-document.getElementById('createQuizBtn').onclick = function() {
+// Load quizzes for selected course
+async function loadQuizzes() {
+    const courseId = document.getElementById('courseSelect').value;
+    if (!courseId) return;
+    console.log('Loading quizzes for course:', courseId);
+    const container = document.getElementById('teacherQuizzesList');
+    container.innerHTML = 'Loading quizzes...';
+    try {
+        const res = await fetch(`${API}/quizzes/course/${courseId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await res.json();
+        console.log('Quizzes data:', data);
+        if (res.ok && data.quizzes) {
+            container.innerHTML = data.quizzes.map(q => `
+                <div class="quiz-card">
+                    <h3>${q.title}</h3>
+                    <p>${q.description || 'No description'}</p>
+                    <button class="btn-edit" onclick="editQuiz('${q.id}')">Edit</button>
+                    <button class="btn-view" onclick="viewResults('${q.id}')">Results</button>
+                </div>
+            `).join('') || 'No quizzes. Create one!';
+        } else {
+            container.innerHTML = 'No quizzes found';
+            console.error('Quizzes error:', data);
+        }
+    } catch (err) {
+        console.error('Fetch quizzes error:', err);
+        container.innerHTML = 'Error loading quizzes';
+    }
+}
+
+// Modal functions
+function openCreateModal() {
+    document.getElementById('quizForm').reset();
+    document.getElementById('modalTitle').textContent = 'Create New Quiz';
+    document.getElementById('questionsContainer').innerHTML = `
+        <h4>Questions:</h4>
+        <div class="question-form">
+            <input placeholder="Question text" required>
+            <input placeholder="Options (comma separated: A,B,C,D)" >
+            <input placeholder="Correct answer index (0=A, 1=B)" required>
+            <input type="number" placeholder="Points" value="10" min="1" required>
+            <button type="button" onclick="this.parentElement.remove()">Remove</button>
+        </div>
+    `;
     document.getElementById('createQuizModal').style.display = 'block';
-};
+}
 
 function closeModal() {
     document.getElementById('createQuizModal').style.display = 'none';
 }
 
 function addQuestion() {
-    const list = document.getElementById('questionsList');
-    const div = document.createElement('div');
-    div.innerHTML = `
-        <input placeholder="Question">
-        <input placeholder="Options (A,B,C,D)" >
-        <input placeholder="Correct answer (0,1,2..)" required>
-        <button onclick="this.parentElement.remove()">Remove</button>
-    `;
-    list.appendChild(div.firstChild);
+    const container = document.getElementById('questionsContainer');
+    const index = container.querySelectorAll('.question-form').length;
+    container.insertAdjacentHTML('beforeend', `
+        <div class="question-form">
+            <input placeholder="Question text" required>
+            <input placeholder="Options (comma separated: A,B,C,D)" >
+            <input placeholder="Correct answer index (0=A, 1=B)" required>
+            <input type="number" placeholder="Points" value="10" min="1" required>
+            <button type="button" onclick="this.parentElement.remove()">Remove</button>
+        </div>
+    `);
 }
 
-document.getElementById('quizForm').onsubmit = async function(e) {
+// Save quiz form
+document.getElementById('quizForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const courseSelect = document.getElementById('courseSelect');
-    currentCourseId = courseSelect.value;
-    if (!currentCourseId) return alert('Select course');
+    const courseId = document.getElementById('courseSelect').value;
+    if (!courseId) return alert('Select a course first');
     
     const title = document.getElementById('quizTitle').value;
     const description = document.getElementById('quizDescription').value;
     const duration = document.getElementById('quizDuration').value;
     
-    // 1. Create quiz
-    let res = await fetch(`${API}/quizzes`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-        body: JSON.stringify({course_id: currentCourseId, title, description, duration: parseInt(duration)})
-    });
-    let data = await res.json();
-    if (!res.ok) return alert(data.error);
-    const quizId = data.quiz.id;
+    console.log('Creating quiz:', {courseId, title, duration});
     
-    // 2. Add questions
-    const qInputs = document.querySelectorAll('#questionsList input');
-    let qCount = 0;
-    for (let i = 0; i < qInputs.length; i += 3) {
-        const question = qInputs[i].value;
-        const options = qInputs[i+1].value.split(',');
-        const correct = qInputs[i+2].value;
-        if (question && correct) {
-            res = await fetch(`${API}/quizzes/${quizId}/questions`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-                body: JSON.stringify({question, options, correct_answer: correct})
-            });
-            if (res.ok) qCount++;
+    try {
+        // 1. Create quiz
+        let res = await fetch(`${API}/quizzes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({course_id: courseId, title, description, duration: parseInt(duration)})
+        });
+        let data = await res.json();
+        console.log('Quiz created:', data);
+        if (!res.ok) return alert('Quiz create error: ' + (data.message || data.error));
+        
+        const quizId = data.quiz.id;
+        
+        // 2. Add questions
+        const forms = document.querySelectorAll('.question-form');
+        let added = 0;
+        for (let form of forms) {
+            const inputs = form.querySelectorAll('input');
+            const question = inputs[0].value;
+            const optionsStr = inputs[1].value;
+            const correct = inputs[2].value;
+            const points = inputs[3].value;
+            if (question && correct) {
+                const options = optionsStr ? optionsStr.split(',').map(o => o.trim()) : null;
+                res = await fetch(`${API}/quizzes/${quizId}/questions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({question, options, correct_answer: correct, points: parseInt(points)})
+                });
+                if (res.ok) added++;
+            }
         }
+        
+        alert(`Quiz created with ${added} questions!`);
+        closeModal();
+        loadQuizzes(); // Reload list
+    } catch (err) {
+        console.error('Quiz save error:', err);
+        alert('Save error - check console');
     }
-    
-    alert(`Quiz saved! ${qCount} questions added.`);
-    closeModal();
-    document.getElementById('courseSelect').onchange();
-};
+});
 
-document.getElementById('courseSelect').onchange = async function() {
-    currentCourseId = this.value;
-    if (!currentCourseId) return;
-    const res = await fetch(`${API}/quizzes/course/${currentCourseId}`, {
-        headers: {'Authorization': `Bearer ${token}`}
-    });
-    const data = await res.json();
-    const list = document.getElementById('teacherQuizzesList');
-    if (data.quizzes) {
-        list.innerHTML = data.quizzes.map(q => `<div class="quiz-card"><h3>${q.title}</h3><p>${q.description}</p><button onclick="viewQuizResults('${q.id}')">Results</button></div>`).join('') || 'No quizzes';
-    }
-};
-
-async function viewQuizResults(quizId) {
-    const res = await fetch(`${API}/quizzes/${quizId}/results`, {
-        headers: {'Authorization': `Bearer ${token}`}
-    });
-    const data = await res.json();
-    alert('Attempts: ' + (data.attempts?.length || 0));
+function editQuiz(quizId) {
+    alert('Edit quiz: Load quiz/questions, populate form. TODO');
 }
-</script>
-</body>
-</html>
+
+function viewResults(quizId) {
+    alert('View results: /quizzes/' + quizId + '/results TODO');
+}
+
+// Load on page ready
+window.onload = function() {
+    loadCourses();
+    console.log('teacher-quizzes loaded, token:', token ? 'yes' : 'no');
+};
 
