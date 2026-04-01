@@ -48,18 +48,21 @@ const menu = document.getElementById("menu");
 if (user.role === "student") {
     menu.innerHTML = `
         <li onclick="showStudentDashboard()">📊 Dashboard</li>
+        <li onclick="window.location.href='quizzes.html'">🧪 Quizzes</li>
         <li onclick="showStudentCourses()">📚 My Courses</li>
         <li onclick="showBrowseCourses()">🔍 Browse Courses</li>
         <li onclick="showStudentDeadlines()">📝 Assignments</li>
         <li onclick="showStudentAttendance()">📋 Attendance</li>
         <li onclick="showStudentLiveClasses()">📹 Live Classes</li>
     `;
+
     loadStudentDashboard();
 }
 
 if (user.role === "teacher") {
     menu.innerHTML = `
         <li onclick="showInstructorDashboard()">📊 Dashboard</li>
+        <li onclick="window.location.href='teacher-quizzes.html'">🧪 Quizzes</li>
         <li onclick="showCreateCourseForm()">➕ Create Course</li>
         <li onclick="showMyCourses()">📚 My Courses</li>
         <li onclick="showInstructorLiveClasses()">📹 Live Classes</li>
@@ -68,6 +71,7 @@ if (user.role === "teacher") {
         <li onclick="showTeacherSessionPanel()">📱 Attendance QR</li>
         <li onclick="window.location.href='students.html'">👨‍🎓 Students</li>
     `;
+
     loadInstructorDashboard();
 }
 
