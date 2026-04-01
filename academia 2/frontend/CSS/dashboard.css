@@ -16,9 +16,19 @@ body{
 }
 
 /* ===== SIDEBAR ===== */
+:root {
+    --primary: #006400;
+    --primary-dark: #004d00;
+    --secondary: #008000;
+    --accent: #FFD700;
+    --bg: #FFFFFF;
+    --text: #333333;
+    --sidebar: #006400;
+}
+
 .sidebar{
     width:260px;
-    background:#0b1d3a;
+    background:var(--sidebar);
     color:white;
     padding:20px;
 }
@@ -92,7 +102,7 @@ body{
 .card p{
     font-size:26px;
     font-weight:bold;
-    color:#1f3c6d;
+    color:var(--text);
 }
 
 /* ===== PANELS ===== */
@@ -105,7 +115,7 @@ body{
 }
 
 .primary-btn{
-    background:#4da3ff;
+    background:var(--primary);
     border:none;
     padding:10px 16px;
     border-radius:8px;
