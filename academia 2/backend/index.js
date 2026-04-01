@@ -36,8 +36,8 @@ app.use('/api/live-class', liveClassesRoutes);
 
 
 // API Routes
-const assignmentsRoutes = require('./routes/assignments');
-app.use('/api/assignments', assignmentsRoutes);
+// Removed assignments routes (feature deleted)
+
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', coursesRoutes);
 app.use('/api/attendance', attendanceRoutes);
