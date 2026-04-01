@@ -60,15 +60,15 @@ CREATE TABLE IF NOT EXISTS parent_student (
 ALTER TABLE parent_student ENABLE ROW LEVEL SECURITY;
 
 -- Policies
-CREATE POLICY "Parents can view their children"
+CREATE POLICY IF NOT EXISTS "Parents can view their children"
     ON parent_student FOR SELECT
     USING (parent_id = auth.uid());
 
-CREATE POLICY "Students can view their parents"
+CREATE POLICY IF NOT EXISTS "Students can view their parents"
     ON parent_student FOR SELECT
     USING (student_id = auth.uid());
 
-CREATE POLICY "Admins can manage parent-student links"
+CREATE POLICY IF NOT EXISTS "Admins can manage parent-student links"
     ON parent_student FOR ALL
     USING (
         EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
