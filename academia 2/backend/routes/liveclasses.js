@@ -29,7 +29,7 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-// CREATE LIVE CLASS (Teacher only)
+// CREATE LIVE CLASS (Teacher only) - FIX start_time NULL
 router.post('/', authMiddleware, async (req, res) => {
     try {
         if (req.user.role !== 'teacher') {
@@ -39,36 +39,42 @@ router.post('/', authMiddleware, async (req, res) => {
         const { course_id, title, zoom_link, scheduled_at } = req.body;
         
         if (!course_id || !title || !zoom_link || !scheduled_at) {
-            return res.status(400).json({ message: 'course_id, title, zoom_link, scheduled_at are required' });
+            return res.status(400).json({ message: 'course_id, title, zoom_link, scheduled_at required' });
         }
 
-        // Verify teacher owns this course
+        // Verify teacher owns course
         const { data: course, error: courseError } = await supabase
             .from('courses')
             .select('*')
             .eq('id', course_id)
-            .eq('teacher_id', req.user.id);
+            .eq('teacher_id', req.user.id)
+            .single();
 
-        if (courseError || !course || course.length === 0) {
-            return res.status(403).json({ message: 'You can only create classes for your own courses' });
+        if (courseError || !course) {
+            return res.status(403).json({ message: 'Only own courses' });
         }
 
-const { data, error } = await supabase
+        const scheduledDate = new Date(scheduled_at);
+        const { data, error } = await supabase
             .from('sessions')
             .insert([{
                 course_id,
-                title,
+                teacher_id: req.user.id,
+                date: scheduledDate.toISOString(),
+                start_time: scheduledDate.toISOString(),
                 zoom_link,
-                scheduled_at: new Date(scheduled_at).toISOString(),
+                title,
                 status: 'scheduled'
             }])
-            .select();
+            .select()
+            .single();
 
         if (error) {
+            console.error('Sessions insert error:', error);
             return res.status(500).json({ message: error.message });
         }
 
-        res.status(201).json({ message: 'Class scheduled successfully', liveClass: data[0] });
+        res.status(201).json({ message: 'Class created', session: data });
 
     } catch (err) {
         console.error(err);
@@ -76,93 +82,73 @@ const { data, error } = await supabase
     }
 });
 
-// GET LIVE CLASSES BY COURSE (Student enrolled only)
+// GET course sessions
 router.get('/course/:courseId', authMiddleware, async (req, res) => {
     try {
         const courseId = req.params.courseId;
 
-        // Check if student is enrolled (for students) or teacher owns course (for teachers)
         if (req.user.role === 'student') {
-            const { data: enrollment, error } = await supabase
+            const { data: enrollment } = await supabase
                 .from('enrollments')
                 .select('id')
                 .eq('course_id', courseId)
-                .eq('student_id', req.user.id);
-
-            if (error || !enrollment || enrollment.length === 0) {
-                return res.status(403).json({ message: 'You must be enrolled to view classes' });
-            }
+                .eq('student_id', req.user.id)
+                .single();
+            if (!enrollment) return res.status(403).json({ message: 'Enroll first' });
         }
 
-        const { data: liveClasses, error } = await supabase
-            .from('live_classes')
+        const { data: sessions, error } = await supabase
+            .from('sessions')
             .select(`
                 *,
-                course:courses(title)
+                course!inner(title)
             `)
             .eq('course_id', courseId)
-            .order('scheduled_at', { ascending: true });
+            .order('date', { ascending: true });
 
-        if (error) {
-            return res.status(500).json({ message: error.message });
-        }
-
-        res.json({ liveClasses: liveClasses || [] });
-
+        if (error) return res.status(500).json({ message: error.message });
+        res.json({ sessions: sessions || [] });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: err.message });
     }
 });
 
-// GET ALL UPCOMING LIVE CLASSES (Teachers see their courses, students see enrolled)
+// GET upcoming (role filtered)
 router.get('/upcoming', authMiddleware, async (req, res) => {
     try {
         let courseIds = [];
         
         if (req.user.role === 'student') {
-            const { data: enrollments, error: enrollError } = await supabase
+            const { data: enrollments } = await supabase
                 .from('enrollments')
                 .select('course_id')
                 .eq('student_id', req.user.id);
-                
-            if (enrollError) {
-                return res.status(500).json({ message: enrollError.message });
-            }
-            
             courseIds = enrollments?.map(e => e.course_id) || [];
         } else if (req.user.role === 'teacher') {
-            const { data: courses, error: courseError } = await supabase
+            const { data: courses } = await supabase
                 .from('courses')
                 .select('id')
                 .eq('teacher_id', req.user.id);
-                
-            if (courseError) {
-                return res.status(500).json({ message: courseError.message });
-            }
-            
             courseIds = courses?.map(c => c.id) || [];
         } else {
             return res.status(403).json({ message: 'Unauthorized role' });
         }
 
-        const { data: liveClasses, error } = await supabase
-            .from('live_classes')
+        const now = new Date().toISOString();
+        const { data: sessions, error } = await supabase
+            .from('sessions')
             .select(`
                 *,
-                course:courses(title)
+                course!inner(title)
             `)
             .in('course_id', courseIds)
-            .order('scheduled_at', { ascending: true });
+            .gte('date', now)
+            .order('date', { ascending: true });
 
-        if (error) {
-            return res.status(500).json({ message: error.message });
-        }
-
-        res.json({ liveClasses: liveClasses || [] });
+        if (error) return res.status(500).json({ message: error.message });
+        res.json({ sessions: sessions || [] });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: err.message });
     }
 });
 
