@@ -61,7 +61,7 @@ function logout() {
 }
 
 // Panel Navigation
-function showPanel(panelName) {
+function showPanel(panelName, event) {
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
@@ -338,7 +338,7 @@ async function saveUser() {
     const userData = {
         full_name: fullName,
         email,
-        password,
+        password: password || undefined,  // Optional for edits
         role,
         phone,
         date_of_birth: dob
@@ -349,8 +349,12 @@ async function saveUser() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/admin/users`, {
-            method: 'POST',
+        const isEdit = userId && userId.trim() !== '';
+        const url = isEdit ? `${API_URL}/admin/users/${userId}` : `${API_URL}/admin/users`;
+        const method = isEdit ? 'PATCH' : 'POST';
+
+        const response = await fetch(url, {
+            method,
             headers: {
                 'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json'

@@ -22,13 +22,13 @@ if (user.role !== "student") {
 let html5QrCode = null;
 let isScanning = false;
 
-// Initialize QR scanner when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    initScanner();
-});
+// Start scanning button handler (user gesture for iOS Safari)
+document.getElementById('startScanBtn')?.addEventListener('click', initScanner);
 
 function initScanner() {
+    const startBtn = document.getElementById('startScanBtn');
     const readerElement = document.getElementById("reader");
+    if (startBtn) startBtn.style.display = 'none'; // Hide button after start
     
     // Check if browser supports camera
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {

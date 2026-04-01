@@ -49,16 +49,22 @@ if (registerForm) {
 
 /* ================= LOGIN ================= */
 const loginForm = document.getElementById("loginForm");
+const loginBtn = document.querySelector('#loginForm button[type="submit"]') || loginForm.querySelector('button');
 
-if (loginForm) {
+if (loginForm && loginBtn) {
     loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const email = document.getElementById("email").value;
         const password = document.getElementById("password").value;
 
-        try {
+        // 💫 Loading state
+        const originalText = loginBtn.textContent;
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<span class="loading"></span> Logging in...';
+        loginBtn.style.opacity = '0.7';
 
+        try {
             const res = await fetch(`${API}/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -69,7 +75,6 @@ if (loginForm) {
             console.log("LOGIN RESPONSE:", data);
 
             if(res.ok){
-
                 // ✅ SAVE TOKEN + USER
                 localStorage.setItem("token", data.token);
                 localStorage.setItem("user", JSON.stringify(data.user));
@@ -80,7 +85,6 @@ if (loginForm) {
                 } else {
                     window.location.href = "dashboard.html";
                 }
-
             } else {
                 alert(data.message || "Login failed");
             }
@@ -88,6 +92,11 @@ if (loginForm) {
         } catch(err){
             console.error(err);
             alert("Server error");
+        } finally {
+            // 🔄 Reset button
+            loginBtn.disabled = false;
+            loginBtn.textContent = originalText;
+            loginBtn.style.opacity = '1';
         }
     });
 }

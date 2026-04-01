@@ -22,11 +22,15 @@ function toggleSidebar() {
   }
 }
 
+// ✅ Create overlay only if it doesn't exist (single instance)
 function createOverlay() {
-  const overlay = document.createElement('div');
-  overlay.className = 'sidebar-overlay';
-  overlay.onclick = toggleSidebar;
-  document.querySelector('.dashboard').appendChild(overlay);
+  let overlay = document.querySelector('.sidebar-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'sidebar-overlay';
+    overlay.onclick = toggleSidebar;
+    document.querySelector('.dashboard').appendChild(overlay);
+  }
   return overlay;
 }
 
