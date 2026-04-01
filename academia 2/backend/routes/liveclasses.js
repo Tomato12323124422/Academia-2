@@ -53,13 +53,14 @@ router.post('/', authMiddleware, async (req, res) => {
             return res.status(403).json({ message: 'You can only create classes for your own courses' });
         }
 
-        const { data, error } = await supabase
-            .from('live_classes')
+const { data, error } = await supabase
+            .from('sessions')
             .insert([{
                 course_id,
                 title,
                 zoom_link,
-                scheduled_at: new Date(scheduled_at).toISOString()
+                scheduled_at: new Date(scheduled_at).toISOString(),
+                status: 'scheduled'
             }])
             .select();
 
