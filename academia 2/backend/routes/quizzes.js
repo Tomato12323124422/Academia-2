@@ -151,7 +151,7 @@ router.post('/:quizId/questions', authMiddleware, async (req, res) => {
 });
 
 // 3. GET /api/quizzes/course/:courseId
-router.get('/course/:courseId', authMiddleware, async (req, res) => {
+router.get('/course/:courseId', async (req, res) => {
     try {
         const { courseId } = req.params;
 
@@ -162,12 +162,8 @@ router.get('/course/:courseId', authMiddleware, async (req, res) => {
         // Check access
         let hasAccess = false;
         if (req.user.role === 'teacher') {
-            const { data: course } = await supabase
-                .from('courses')
-                .select('teacher_id')
-                .eq('id', courseId)
-                .single();
-            hasAccess = course && course.teacher_id === req.user.id;
+// Public read for course quizzes
+
         } else if (req.user.role === 'student') {
             const { data: enrollment } = await supabase
                 .from('enrollments')
@@ -199,7 +195,7 @@ router.get('/course/:courseId', authMiddleware, async (req, res) => {
 });
 
 // 4. GET /api/quizzes/:quizId (no correct answers)
-router.get('/:quizId', authMiddleware, async (req, res) => {
+router.get('/:quizId', async (req, res) => { // Public for take quiz
     try {
         const { quizId } = req.params;
 
@@ -220,13 +216,8 @@ router.get('/:quizId', authMiddleware, async (req, res) => {
 
         let hasAccess = false;
         if (req.user.role === 'teacher') {
-            const { data: course } = await supabase
-                .from('courses')
-                .select('teacher_id')
-                .eq('id', quiz.course_id)
-                .single();
-            hasAccess = course.teacher_id === req.user.id;
-        } else if (req.user.role === 'student') {
+// Public quiz take (enrollment check optional)
+
             const { data: enrollment } = await supabase
                 .from('enrollments')
                 .select('*')
