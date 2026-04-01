@@ -741,8 +741,7 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
-/* ===== DASHBOARD SPECIFIC (merged from dashboard.css) ===== */
-.sidebar-overlay {
+
   position: fixed;
   top: 0;
   left: 0;
