@@ -62,11 +62,10 @@ if (user.role === "student") {
 if (user.role === "teacher") {
     menu.innerHTML = `
         <li onclick="showInstructorDashboard()">📊 Dashboard</li>
-        <li onclick="window.location.href='teacher-quizzes.html'">🧪 Quizzes</li>
+        <li onclick="window.location.href='teacher-assignments.html'">📝 Assignments</li>
         <li onclick="showCreateCourseForm()">➕ Create Course</li>
         <li onclick="showMyCourses()">📚 My Courses</li>
         <li onclick="showInstructorLiveClasses()">📹 Live Classes</li>
-        <li onclick="showTeacherAssignments()">📝 Assignments</li>
         <li onclick="showInstructorAnalytics()">📈 Analytics</li>
         <li onclick="showTeacherSessionPanel()">📱 Attendance QR</li>
         <li onclick="window.location.href='students.html'">👨‍🎓 Students</li>
