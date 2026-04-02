@@ -9,13 +9,13 @@
 - Track progress here
 
 ### 2. [PENDING] Enhance Backend Error Handling & Logging
-- Edit `academia 2/backend/routes/admin.js`
+- Edit `backend/routes/admin.js`
   - Add detailed error categorization in `/enrollments` endpoint
   - Add test endpoint `/enrollments?test=1` (bypass auth)
   - Improve console logging for Render
 
 ### 3. [PENDING] Improve Frontend Error Display
-- Edit `academia 2/frontend/js/admin-dashboard.js`
+- Edit `frontend/js/admin-dashboard.js`
   - Parse error response.json() in catch blocks
   - Show specific errors (DB/Env/Auth) instead of generic message
   - Add network status indicator
