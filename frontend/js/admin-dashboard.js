@@ -1,11 +1,10 @@
 // Admin Dashboard JavaScript
-
-// Use local server for development, or production URL
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+// Get base URL from global scope or default to localhost
+const ADMIN_API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:5000' 
     : window.location.origin;
 
-const API_URL = `${API_BASE}/api`;
+const API_URL = `${ADMIN_API_BASE}/api`;
 
 let authToken = localStorage.getItem('token');
 let currentUser = null;
