@@ -63,7 +63,7 @@ router.post('/', authMiddleware, async (req, res) => {
                 date: scheduledDate.toISOString(),
                 start_time: scheduledDate.toISOString(),
                 zoom_link,
-                title,
+                topic: title, // title is what we get from body, topic is what's in DB
                 status: 'scheduled'
             }])
             .select()
@@ -134,12 +134,16 @@ router.get('/upcoming', authMiddleware, async (req, res) => {
             return res.status(403).json({ message: 'Unauthorized role' });
         }
 
+        if (courseIds.length === 0) {
+            return res.json({ sessions: [] });
+        }
+
         const now = new Date().toISOString();
         const { data: sessions, error } = await supabase
             .from('sessions')
             .select(`
                 *,
-                course!inner(title)
+                course:courses(title)
             `)
             .in('course_id', courseIds)
             .gte('date', now)

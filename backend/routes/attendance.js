@@ -423,10 +423,7 @@ router.get('/active-sessions', authMiddleware, async (req, res) => {
         // Get all active sessions with course info
         const { data: sessions, error } = await supabase
             .from('sessions')
-            .select(`
-                *,
-                course:courses(id, title, category)
-            `)
+            .select('*, course:courses(title, category)')
             .eq('status', 'active')
             .order('date', { ascending: false });
 
