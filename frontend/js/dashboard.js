@@ -1023,30 +1023,15 @@ function showGuardianChildren() {
 /* ===== HELPER FUNCTIONS ===== */
 
 function hideAllPanels() {
-    document.getElementById("studentDeadlinesPanel").style.display = "none";
-    document.getElementById("studentAttendanceHistoryPanel").style.display = "none";
-    document.getElementById("studentLiveClassesPanel").style.display = "none";
-    document.getElementById("studentLeaderboardPanel").style.display = "none";
-    document.getElementById("studentCoursesPanel").style.display = "none";
-    document.getElementById("studentAttendancePanel").style.display = "none";
-    document.getElementById("browseCoursesPanel").style.display = "none";
+    // Hide all elements with class 'panel'
+    const panels = document.querySelectorAll('.panel');
+    panels.forEach(panel => {
+        panel.style.display = "none";
+    });
 
-    document.getElementById("instructorAnalyticsPanel").style.display = "none";
-    document.getElementById("instructorLiveClassesPanel").style.display = "none";
-    document.getElementById("instructorLeaderboardPanel").style.display = "none";
-    document.getElementById("teacherSessionPanel").style.display = "none";
-    document.getElementById("attendanceListPanel").style.display = "none";
-    document.getElementById("createCoursePanel").style.display = "none";
-    document.getElementById("myCoursesPanel").style.display = "none";
-    document.getElementById("courseSessionsPanel").style.display = "none";
-    document.getElementById("courseStudentsPanel").style.display = "none";
-    
-    document.getElementById("guardianChildrenPanel").style.display = "none";
-    document.getElementById("guardianCoursesPanel").style.display = "none";
-    document.getElementById("guardianGradesPanel").style.display = "none";
-    document.getElementById("guardianAttendancePanel").style.display = "none";
-    document.getElementById("guardianAssignmentsPanel").style.display = "none";
-    document.getElementById("guardianAchievementsPanel").style.display = "none";
+    // Also hide the quiz modal if it exists
+    const quizModal = document.getElementById("quizModal");
+    if (quizModal) quizModal.style.display = "none";
 }
 
 function logout() {
