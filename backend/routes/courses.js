@@ -240,35 +240,70 @@ router.post('/:id/enroll', authMiddleware, async (req, res) => {
 // GET COURSE ENROLLMENTS (Teacher only)
 router.get('/:id/enrollments', authMiddleware, async (req, res) => {
     try {
-        const { data: course, error: courseError } = await supabase
+        const { data: courses, error: courseError } = await supabase
             .from('courses')
             .select('*')
             .eq('id', req.params.id);
 
-        if (courseError || !course || course.length === 0) {
+        if (courseError) {
+            console.error('Course fetch error:', courseError);
+            return res.status(500).json({ message: courseError.message });
+        }
+
+        if (!courses || courses.length === 0) {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        if (course[0].teacher_id !== req.user.id && req.user.role !== 'admin') {
+        const course = courses[0];
+
+        // Check authorization
+        if (course.teacher_id !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
-        const { data, error } = await supabase
+        // Fetch enrollments
+        const { data: enrollments, error: enrollError } = await supabase
             .from('enrollments')
-            .select(`
-                *,
-                student:student_id(id, full_name, email)
-            `)
+            .select('*')
             .eq('course_id', req.params.id);
 
-        if (error) {
-            return res.status(500).json({ message: error.message });
+        if (enrollError) {
+            console.error('Enrollments fetch error:', enrollError);
+            return res.status(500).json({ message: enrollError.message });
         }
 
-        res.json({ enrollments: data });
+        if (!enrollments || enrollments.length === 0) {
+            return res.json({ enrollments: [] });
+        }
+
+        // Fetch student details for all enrolled students
+        const studentIds = [...new Set(enrollments.map(e => e.student_id))];
+        const { data: students, error: studentError } = await supabase
+            .from('users')
+            .select('id, full_name, email')
+            .in('id', studentIds);
+
+        if (studentError) {
+            console.error('Students fetch error:', studentError);
+            // Don't fail the whole request, just return enrollments without details if students can't be fetched
+            return res.json({ enrollments: enrollments.map(e => ({ ...e, student: null })) });
+        }
+
+        // Map student details back to enrollments
+        const studentMap = (students || []).reduce((map, student) => {
+            map[student.id] = student;
+            return map;
+        }, {});
+
+        const enrichedEnrollments = enrollments.map(enrollment => ({
+            ...enrollment,
+            student: studentMap[enrollment.student_id] || { id: enrollment.student_id, full_name: 'Unknown Student', email: 'N/A' }
+        }));
+
+        res.json({ enrollments: enrichedEnrollments });
 
     } catch (err) {
-        console.error(err);
+        console.error('Enrollments route error:', err);
         res.status(500).json({ message: 'Server error' });
     }
 });
