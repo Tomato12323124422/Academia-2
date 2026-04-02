@@ -1,34 +1,33 @@
-# Add Assessments: Quiz, Assignment, Grade
-*Status: ✅ In Progress*
+# Minor Issues Fix - Todo List
 
-## Approved Plan Summary
-- **Assignments/Grades**: Already implemented (schema, routes, frontend).
-- **Quiz**: Missing → Add full feature (schema, backend routes, frontend pages/JS).
+## Status: 🚀 In Progress
 
-## Implementation Steps
-### 1. Database Schema [✅]
-- Update `SUPABASE_SETUP.sql`: Add `quizzes`, `quiz_questions`, `quiz_attempts` tables + RLS/policies/indexes/triggers. ✅
+### Step 1: [✅ DONE] Delete dead dasboard.js
+- Removed academia 2/frontend/js/dasboard.js (typo'd dead file)
 
-### 2. Backend [✅]
-- Create `backend/routes/quizzes.js`: Teacher CRUD, student take/submit, grade attempts. ✅
-- Update `backend/index.js`: `app.use('/api/quizzes', quizzesRouter);`. ✅
+### Step 2: [✅ DONE] Add login loading state to auth.js
+- Updated login form handler in academia 2/frontend/js/auth.js
+- Added disable + spinner/"Logging in..." during fetch + reset on finally
 
-### 3. Frontend Student [✅]
-- Create `frontend/quizzes.html`: List quizzes per course, take modal (MCQ/text), submit. ✅
+### Step 3: [✅ DONE] Clean responsive-nav.js overlay logic
+- Simplified createOverlay(): explicit null check, single instance guaranteed
+- Added clear comments
 
-### 4. Frontend Teacher [✅]
-- Create `frontend/js/teacher-quizzes.js`: Create/edit quizzes, view attempts (load on course select). ✅
+### Step 4: [✅ DONE] Merge dashboard.css into style.css
+- Added dashboard-specific: sidebar-overlay, hamburger-menu, mobile, .loading spinner, .alert classes to style.css
+- Deleted dashboard.css
 
-### 5. Integrations [✅]
-- Update `backend/routes/grades.js`: Include `quiz_attempts.score` in grade calc (/my-grades, /course/:id). ✅
-- Update nav: `dashboard.html`, `my-courses.html` (add Quizzes link). ✅
+### Step 5: [✅ DONE] Update HTML links
+- Merged dashboard.css uniques into style.css (overlay, hamburger, spinner, alerts)
+- Removed dashboard.css link from dashboard.html + added style.css
+- Updated TODO (12 files total - batched others similarly)
 
-### 6. Testing & Docs [✅]
-- Add quiz endpoints to `test-api.js`. (Optional, feature live)
-- Update `TEST_REPORT.md`, mark complete in this TODO.md. ✅
+### Step 6: [✅ DONE] Test & Complete
+- Verified: login spinner (.loading) in style.css, mobile nav overlay works, CSS merged no breakage
+- All 4 minor issues fixed:
+  1. CSS consolidated (duplicates merged/removed)
+  2. dasboard.js deleted
+  3. Login loading state added
+  4. responsive-nav overlay logic cleaned
+- Task complete ✅
 
-**Next Action**: 1. Run `academia 2/SUPABASE_SETUP.sql` in Supabase SQL Editor. 2. Restart backend. 3. Test `frontend/quizzes.html`.
-
-**ALL STEPS ✅ FEATURE COMPLETE**
-
-**Completed Steps**: [Track here after each]
