@@ -27,6 +27,7 @@ if (user.role === "student") {
         <li onclick="showStudentDeadlines()">📝 Assignments</li>
         <li onclick="showStudentAttendance()">📋 Attendance</li>
         <li onclick="showStudentLiveClasses()">📹 Live Classes</li>
+        <li onclick="showStudentQuizzes()">📝 Quizzes</li>
         <li onclick="showStudentLeaderboard()">🏆 Leaderboard</li>
     `;
     loadStudentDashboard();
@@ -41,6 +42,7 @@ if (user.role === "teacher") {
         <li onclick="showInstructorAnalytics()">📈 Analytics</li>
         <li onclick="showInstructorLeaderboard()">🏆 Leaderboard</li>
         <li onclick="showTeacherSessionPanel()">📱 Attendance QR</li>
+        <li onclick="showInstructorQuizzes()">📝 Manage Quizzes</li>
         <li onclick="window.location.href='students.html'">👨‍🎓 Students</li>
     `;
     loadInstructorDashboard();
@@ -71,7 +73,8 @@ async function loadStudentDashboard() {
         loadStudentDeadlines(),
         loadStudentAttendanceHistory(),
         loadStudentLiveClasses(),
-        loadStudentLeaderboard()
+        loadStudentLeaderboard(),
+        loadStudentQuizzes()
     ]);
 }
 
@@ -433,6 +436,7 @@ async function loadInstructorDashboard() {
         loadInstructorAnalytics(),
         loadInstructorLiveClasses(),
         loadInstructorLeaderboard(),
+        loadTeacherQuizzes(),
         checkActiveSession()
     ]);
 }
@@ -1415,4 +1419,340 @@ async function viewCourseSessions(courseId) {
 
 function openAttendanceScanner() {
     window.location.href = "attendance-scan.html";
+}
+
+/* ========== QUIZ MODULE ========== */
+
+// --- TEACHER FUNCTIONS ---
+
+function showInstructorQuizzes() {
+    hideAllPanels();
+    document.getElementById("teacherQuizzesPanel").style.display = "block";
+    loadTeacherQuizzes();
+}
+
+async function loadTeacherQuizzes() {
+    try {
+        // We need all teacher's courses to get their quizzes
+        const coursesRes = await fetch(`${API}/courses/my-courses`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const coursesData = await coursesRes.json();
+        
+        if (!coursesRes.ok) return;
+
+        const container = document.getElementById("teacherQuizzesList");
+        let html = '';
+
+        for (const course of coursesData.courses) {
+            const quizRes = await fetch(`${API}/quizzes/course/${course.id}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const quizData = await quizRes.json();
+            
+            if (quizData.quizzes && quizData.quizzes.length > 0) {
+                html += `<h4>${course.title}</h4>`;
+                html += quizData.quizzes.map(quiz => `
+                    <div class="deadline-item">
+                        <div class="deadline-info">
+                            <strong>${quiz.title}</strong>
+                            <p>${quiz.time_limit} mins | Created: ${new Date(quiz.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div class="action-btns">
+                            <button class="primary-btn" style="padding: 5px 10px;" onclick="viewQuizResults('${quiz.id}', '${quiz.title}')">Results</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        container.innerHTML = html || "<p>No quizzes created yet.</p>";
+
+    } catch (err) {
+        console.error("Error loading teacher quizzes:", err);
+    }
+}
+
+function openQuizModal() {
+    document.getElementById("quizModal").style.display = "block";
+    loadCourseSelect();
+    // Reset form and questions
+    document.getElementById("quizForm").reset();
+    document.getElementById("questionsContainer").innerHTML = '';
+    addQuestion(); // Add first question by default
+}
+
+function closeQuizModal() {
+    document.getElementById("quizModal").style.display = "none";
+}
+
+async function loadCourseSelect() {
+    const res = await fetch(`${API}/courses/my-courses`, {
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const select = document.getElementById("quizCourse");
+    select.innerHTML = data.courses.map(c => `<option value="${c.id}">${c.title}</option>`).join('');
+}
+
+let questionCount = 0;
+function addQuestion() {
+    questionCount++;
+    const container = document.getElementById("questionsContainer");
+    const div = document.createElement("div");
+    div.className = "question-entry";
+    div.id = `q-block-${questionCount}`;
+    div.style = "background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--primary);";
+    
+    div.innerHTML = `
+        <div class="form-group">
+            <label>Question ${questionCount}</label>
+            <input type="text" class="q-text" placeholder="Enter question..." required>
+        </div>
+        <div class="form-group">
+            <label>Options (Enter 4 options)</label>
+            <input type="text" class="opt" placeholder="Option 1" required style="margin-bottom: 5px;">
+            <input type="text" class="opt" placeholder="Option 2" required style="margin-bottom: 5px;">
+            <input type="text" class="opt" placeholder="Option 3" required style="margin-bottom: 5px;">
+            <input type="text" class="opt" placeholder="Option 4" required style="margin-bottom: 5px;">
+        </div>
+        <div class="form-group">
+            <label>Correct Option (Index 1-4)</label>
+            <input type="number" class="correct-opt" min="1" max="4" value="1" required>
+        </div>
+        <button type="button" class="logout" style="background: #dc3545; padding: 5px 10px;" onclick="removeQuestion(${questionCount})">Remove Question</button>
+    `;
+    container.appendChild(div);
+}
+
+function removeQuestion(id) {
+    const el = document.getElementById(`q-block-${id}`);
+    if (el) el.remove();
+}
+
+async function saveQuiz(e) {
+    e.preventDefault();
+    const questions = [];
+    const qBlocks = document.querySelectorAll('.question-entry');
+    
+    qBlocks.forEach(block => {
+        const text = block.querySelector('.q-text').value;
+        const options = Array.from(block.querySelectorAll('.opt')).map(i => i.value);
+        const correct = parseInt(block.querySelector('.correct-opt').value) - 1;
+        questions.push({
+            question_text: text,
+            options: options,
+            correct_option: correct,
+            marks: 1
+        });
+    });
+
+    const quizData = {
+        course_id: document.getElementById("quizCourse").value,
+        title: document.getElementById("quizTitle").value,
+        description: document.getElementById("quizDescription").value,
+        time_limit: document.getElementById("quizTimeLimit").value,
+        questions: questions
+    };
+
+    try {
+        const res = await fetch(`${API}/quizzes`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+             },
+            body: JSON.stringify(quizData)
+        });
+
+        if (res.ok) {
+            alert("Quiz created!");
+            closeQuizModal();
+            loadTeacherQuizzes();
+        } else {
+            const data = await res.json();
+            alert(data.message || "Failed to create quiz");
+        }
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+async function viewQuizResults(quizId, title) {
+    hideAllPanels();
+    document.getElementById("quizResultsPanel").style.display = "block";
+    document.getElementById("resultsQuizTitle").innerText = `Results: ${title}`;
+    
+    try {
+        const res = await fetch(`${API}/quizzes/${quizId}/results`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        const body = document.getElementById("quizResultsBody");
+        if (data.results && data.results.length > 0) {
+            body.innerHTML = data.results.map(r => `
+                <tr>
+                    <td>${r.users?.full_name}</td>
+                    <td>${r.users?.email}</td>
+                    <td>${r.score} / ${r.total_marks}</td>
+                    <td><span class="status-active">Submitted</span></td>
+                </tr>
+            `).join('');
+        } else {
+            body.innerHTML = "<tr><td colspan='4'>No submissions yet</td></tr>";
+        }
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+// --- STUDENT FUNCTIONS ---
+
+function showStudentQuizzes() {
+    hideAllPanels();
+    document.getElementById("studentQuizzesPanel").style.display = "block";
+    loadStudentQuizzes();
+}
+
+async function loadStudentQuizzes() {
+    try {
+        const res = await fetch(`${API}/courses/enrolled`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        const container = document.getElementById("studentQuizzesList");
+        let html = '';
+
+        for (const course of data.courses) {
+            const quizRes = await fetch(`${API}/quizzes/course/${course.id}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const quizData = await quizRes.json();
+            
+            if (quizData.quizzes && quizData.quizzes.length > 0) {
+                html += `<h4>${course.title}</h4>`;
+                html += quizData.quizzes.map(quiz => `
+                    <div class="deadline-item">
+                        <div class="deadline-info">
+                            <strong>${quiz.title}</strong>
+                            <p>${quiz.time_limit} mins | Questions: ...</p>
+                        </div>
+                        <div class="action-btns">
+                            <button class="primary-btn" onclick="openQuiz('${quiz.id}')">View/Take Quiz</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        container.innerHTML = html || "<p>No quizzes available for your courses.</p>";
+
+    } catch (err) {
+        console.error("Error loading student quizzes:", err);
+    }
+}
+
+let activeQuizId = null;
+let quizTimerInterval = null;
+let currentQuestions = [];
+
+async function openQuiz(id) {
+    try {
+        const res = await fetch(`${API}/quizzes/${id}`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        if (data.alreadySubmitted) {
+            alert("You have already submitted this quiz.");
+            return;
+        }
+
+        if (!confirm(`Are you ready to start this quiz? You will have ${data.quiz.time_limit} minutes.`)) return;
+
+        hideAllPanels();
+        document.getElementById("quizViewPanel").style.display = "block";
+        document.getElementById("viewQuizTitle").innerText = data.quiz.title;
+        document.getElementById("viewQuizDesc").innerText = data.quiz.description || '';
+        
+        activeQuizId = id;
+        currentQuestions = data.questions;
+        
+        // Render questions
+        const container = document.getElementById("takingQuestionsContainer");
+        container.innerHTML = data.questions.map((q, idx) => `
+            <div class="q-take-block" style="margin-bottom: 25px;">
+                <p><strong>Q${idx+1}: ${q.question_text}</strong></p>
+                <div class="options" style="margin-top: 10px; display: grid; gap: 8px;">
+                    ${q.options.map((opt, optIdx) => `
+                        <label style="padding: 10px; background: #f0f2f5; border-radius: 6px; cursor: pointer;">
+                            <input type="radio" name="q-${idx}" value="${optIdx}" required> ${opt}
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+
+        startTimer(data.quiz.time_limit * 60);
+
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+function startTimer(duration) {
+    let timer = duration, minutes, seconds;
+    const display = document.getElementById("quizTimer");
+    
+    if (quizTimerInterval) clearInterval(quizTimerInterval);
+    
+    quizTimerInterval = setInterval(function () {
+        minutes = parseInt(timer / 60, 10);
+        seconds = parseInt(timer % 60, 10);
+
+        minutes = minutes < 10 ? "0" + minutes : minutes;
+        seconds = seconds < 10 ? "0" + seconds : seconds;
+
+        display.textContent = "Time Left: " + minutes + ":" + seconds;
+
+        if (--timer < 0) {
+            clearInterval(quizTimerInterval);
+            alert("Time is up! Submitting automatically.");
+            submitQuiz();
+        }
+    }, 1000);
+}
+
+async function submitQuiz(e) {
+    if (e) e.preventDefault();
+    
+    const answers = [];
+    currentQuestions.forEach((_, idx) => {
+        const selected = document.querySelector(`input[name="q-${idx}"]:checked`);
+        answers.push(selected ? parseInt(selected.value) : -1);
+    });
+
+    try {
+        const res = await fetch(`${API}/quizzes/${activeQuizId}/submit`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ answers })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            clearInterval(quizTimerInterval);
+            alert(`Quiz Submitted! Your score: ${data.score} / ${data.totalMarks}`);
+            showStudentQuizzes();
+        } else {
+            alert(data.message || "Failed to submit quiz");
+        }
+    } catch(err) {
+        console.error(err);
+    }
 }

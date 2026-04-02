@@ -11,6 +11,7 @@ const gradesRoutes = require('./routes/grades');
 const gamificationRoutes = require('./routes/gamification');
 const guardianRoutes = require('./routes/guardian');
 const adminRoutes = require('./routes/admin');
+const quizzesRoutes = require('./routes/quizzes');
 
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/grades', gradesRoutes);
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/guardian', guardianRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/quizzes', quizzesRoutes);
 
 
 // Health check endpoint
