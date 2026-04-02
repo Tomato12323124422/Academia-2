@@ -1,0 +1,14 @@
+:root {
+  --primary: #0A2A66;
+  --secondary: #F4C542;
+  --bg-light: #F2F2F2;
+  --bg-card: #FFFFFF;
+  --text-primary: #000000;
+  --text-secondary: #333333;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
