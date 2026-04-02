@@ -208,14 +208,18 @@ router.get('/child/:childId/courses', authMiddleware, async (req, res) => {
     try {
         if (req.user.role !== 'parent') return res.status(403).json({ message: 'Only parents can access this' });
 
-        const { data: link } = await supabase
+        // Use array query instead of .single() to avoid PGRST116 error
+        const { data: links, error: linkError } = await supabase
             .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
-            .eq('student_id', req.params.childId)
-            .single();
+            .eq('student_id', req.params.childId);
 
-        if (!link) return res.status(403).json({ message: 'Not authorized' });
+        if (linkError) {
+            console.error('Link check error:', linkError);
+            return res.status(500).json({ message: linkError.message });
+        }
+        if (!links || links.length === 0) return res.status(403).json({ message: 'Not authorized' });
 
         const { data: enrollments, error } = await supabase
             .from('enrollments')
@@ -265,83 +269,143 @@ router.get('/child/:childId/grades', authMiddleware, async (req, res) => {
     try {
         if (req.user.role !== 'parent') return res.status(403).json({ message: 'Only parents can access this' });
 
-        const { data: link } = await supabase
+        // Use array query instead of .single() to avoid PGRST116 error
+        const { data: links, error: linkError } = await supabase
             .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
-            .eq('student_id', req.params.childId)
-            .single();
+            .eq('student_id', req.params.childId);
 
-        if (!link) return res.status(403).json({ message: 'Not authorized' });
+        if (linkError) {
+            console.error('Link check error:', linkError);
+            return res.status(500).json({ message: linkError.message });
+        }
+        if (!links || links.length === 0) return res.status(403).json({ message: 'Not authorized' });
 
+        // Fetch graded submissions (simple query, no joins)
         const { data: submissions, error } = await supabase
             .from('submissions')
-            .select('*, assignment:assignments(*, course:courses(title))')
+            .select('*')
             .eq('student_id', req.params.childId)
-            .not('grade', 'is', null)
-            .order('graded_at', { ascending: false });
+            .not('grade', 'is', null);
 
         if (error) {
             console.error('Submission error:', error);
             return res.status(500).json({ message: error.message });
         }
 
-        const { data: quizSubmissions, error: quizError } = await supabase
-            .from('quiz_submissions')
-            .select('*, quiz:quizzes(*, course:courses(title))')
-            .eq('student_id', req.params.childId)
-            .order('submitted_at', { ascending: false });
-
-        if (quizError) {
-            console.error('Quiz submission error:', quizError);
-            return res.status(500).json({ message: quizError.message });
-        }
-
         let totalPoints = 0;
         let earnedPoints = 0;
         const allGrades = [];
 
-        (submissions || []).forEach(sub => {
-            const assignment = sub.assignment || {};
-            const course = assignment.course || {};
-            const points = assignment.points || 100;
-            const earned = sub.grade || 0;
-            totalPoints += points;
-            earnedPoints += earned;
+        // Process assignment submissions
+        if (submissions && submissions.length > 0) {
+            // Fetch assignment details separately
+            const assignmentIds = submissions.map(s => s.assignment_id).filter(Boolean);
+            let assignmentMap = {};
 
-            allGrades.push({
-                id: `assign_${sub.id}`,
-                assignment_title: assignment.title || 'Unknown Assignment',
-                course_name: course.title || 'Unknown Course',
-                points,
-                grade: earned,
-                percentage: points > 0 ? Math.round((earned / points) * 100) : 0,
-                feedback: sub.feedback,
-                graded_at: sub.graded_at,
-                type: 'assignment'
+            if (assignmentIds.length > 0) {
+                const { data: assignments } = await supabase
+                    .from('assignments')
+                    .select('*')
+                    .in('id', assignmentIds);
+
+                if (assignments) {
+                    // Also fetch course titles
+                    const courseIds = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
+                    let courseMap = {};
+                    if (courseIds.length > 0) {
+                        const { data: courses } = await supabase
+                            .from('courses')
+                            .select('id, title')
+                            .in('id', courseIds);
+                        if (courses) courses.forEach(c => { courseMap[c.id] = c.title; });
+                    }
+
+                    assignments.forEach(a => {
+                        assignmentMap[a.id] = { ...a, course_title: courseMap[a.course_id] || 'Unknown Course' };
+                    });
+                }
+            }
+
+            submissions.forEach(sub => {
+                const assignment = assignmentMap[sub.assignment_id] || {};
+                const points = assignment.points || 100;
+                const earned = sub.grade || 0;
+                totalPoints += points;
+                earnedPoints += earned;
+
+                allGrades.push({
+                    id: sub.id,
+                    assignment_title: assignment.title || 'Unknown Assignment',
+                    course_name: assignment.course_title || 'Unknown Course',
+                    points,
+                    grade: earned,
+                    percentage: points > 0 ? Math.round((earned / points) * 100) : 0,
+                    feedback: sub.feedback,
+                    graded_at: sub.graded_at,
+                    type: 'assignment'
+                });
             });
-        });
+        }
 
-        (quizSubmissions || []).forEach(sub => {
-            const quiz = sub.quiz || {};
-            const course = quiz.course || {};
-            const points = sub.total_marks || 100;
-            const earned = sub.score || 0;
-            totalPoints += points;
-            earnedPoints += earned;
+        // Try to fetch quiz submissions (gracefully skip if table doesn't exist)
+        try {
+            const { data: quizSubmissions, error: quizError } = await supabase
+                .from('quiz_submissions')
+                .select('*')
+                .eq('student_id', req.params.childId);
 
-            allGrades.push({
-                id: `quiz_${sub.id}`,
-                assignment_title: quiz.title ? `Quiz: ${quiz.title}` : 'Unknown Quiz',
-                course_name: course.title || 'Unknown Course',
-                points,
-                grade: earned,
-                percentage: points > 0 ? Math.round((earned / points) * 100) : 0,
-                feedback: null,
-                graded_at: sub.submitted_at,
-                type: 'quiz'
-            });
-        });
+            if (!quizError && quizSubmissions && quizSubmissions.length > 0) {
+                // Fetch quiz details
+                const quizIds = quizSubmissions.map(s => s.quiz_id).filter(Boolean);
+                let quizMap = {};
+
+                if (quizIds.length > 0) {
+                    const { data: quizzes } = await supabase
+                        .from('quizzes')
+                        .select('*')
+                        .in('id', quizIds);
+
+                    if (quizzes) {
+                        const courseIds = [...new Set(quizzes.map(q => q.course_id).filter(Boolean))];
+                        let courseMap = {};
+                        if (courseIds.length > 0) {
+                            const { data: courses } = await supabase
+                                .from('courses')
+                                .select('id, title')
+                                .in('id', courseIds);
+                            if (courses) courses.forEach(c => { courseMap[c.id] = c.title; });
+                        }
+                        quizzes.forEach(q => {
+                            quizMap[q.id] = { ...q, course_title: courseMap[q.course_id] || 'Unknown Course' };
+                        });
+                    }
+                }
+
+                quizSubmissions.forEach(sub => {
+                    const quiz = quizMap[sub.quiz_id] || {};
+                    const points = sub.total_marks || 100;
+                    const earned = sub.score || 0;
+                    totalPoints += points;
+                    earnedPoints += earned;
+
+                    allGrades.push({
+                        id: sub.id,
+                        assignment_title: quiz.title ? `Quiz: ${quiz.title}` : 'Unknown Quiz',
+                        course_name: quiz.course_title || 'Unknown Course',
+                        points,
+                        grade: earned,
+                        percentage: points > 0 ? Math.round((earned / points) * 100) : 0,
+                        feedback: null,
+                        graded_at: sub.submitted_at || sub.created_at,
+                        type: 'quiz'
+                    });
+                });
+            }
+        } catch (quizErr) {
+            console.log('Quiz submissions not available:', quizErr.message);
+        }
 
         allGrades.sort((a, b) => new Date(b.graded_at || 0) - new Date(a.graded_at || 0));
 
@@ -368,30 +432,75 @@ router.get('/child/:childId/attendance', authMiddleware, async (req, res) => {
     try {
         if (req.user.role !== 'parent') return res.status(403).json({ message: 'Only parents can access this' });
 
-        const { data: link } = await supabase
+        // Use array query instead of .single()
+        const { data: links, error: linkError } = await supabase
             .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
-            .eq('student_id', req.params.childId)
-            .single();
+            .eq('student_id', req.params.childId);
 
-        if (!link) return res.status(403).json({ message: 'Not authorized' });
+        if (linkError) {
+            console.error('Link check error:', linkError);
+            return res.status(500).json({ message: linkError.message });
+        }
+        if (!links || links.length === 0) return res.status(403).json({ message: 'Not authorized' });
 
+        // Simple query for attendance records
         const { data: attendance, error } = await supabase
             .from('attendance')
-            .select('*, session:sessions(*, course:courses(title))')
-            .eq('student_id', req.params.childId)
-            .order('marked_at', { ascending: false });
+            .select('*')
+            .eq('student_id', req.params.childId);
 
-        if (error) return res.status(500).json({ message: error.message });
+        if (error) {
+            console.error('Attendance query error:', error);
+            return res.status(500).json({ message: error.message });
+        }
 
-        const total = attendance?.length || 0;
-        const present = attendance?.filter(a => a.status === 'present').length || 0;
+        // If we have attendance records, fetch session & course details separately
+        let enrichedAttendance = [];
+        if (attendance && attendance.length > 0) {
+            const sessionIds = [...new Set(attendance.map(a => a.session_id).filter(Boolean))];
+            let sessionMap = {};
+
+            if (sessionIds.length > 0) {
+                const { data: sessions } = await supabase
+                    .from('sessions')
+                    .select('*')
+                    .in('id', sessionIds);
+
+                if (sessions) {
+                    const courseIds = [...new Set(sessions.map(s => s.course_id).filter(Boolean))];
+                    let courseMap = {};
+                    if (courseIds.length > 0) {
+                        const { data: courses } = await supabase
+                            .from('courses')
+                            .select('id, title')
+                            .in('id', courseIds);
+                        if (courses) courses.forEach(c => { courseMap[c.id] = c.title; });
+                    }
+                    sessions.forEach(s => {
+                        sessionMap[s.id] = { ...s, course: { title: courseMap[s.course_id] || 'Unknown Course' } };
+                    });
+                }
+            }
+
+            enrichedAttendance = attendance.map(a => ({
+                ...a,
+                session: sessionMap[a.session_id] || { course: { title: 'Unknown Course' } }
+            }));
+
+            // Sort by marked_at descending
+            enrichedAttendance.sort((a, b) => new Date(b.marked_at || 0) - new Date(a.marked_at || 0));
+        }
+
+        const total = enrichedAttendance.length;
+        const present = enrichedAttendance.filter(a => a.status === 'present').length;
+        const absent = total - present;
         const rate = total > 0 ? Math.round((present / total) * 100) : 0;
 
         res.json({ 
-            attendance: attendance || [],
-            summary: { total, present, rate }
+            attendance: enrichedAttendance,
+            summary: { total, present, absent, rate }
         });
 
     } catch (err) {
@@ -405,62 +514,124 @@ router.get('/child/:childId/assignments', authMiddleware, async (req, res) => {
     try {
         if (req.user.role !== 'parent') return res.status(403).json({ message: 'Only parents can access this' });
 
-        const { data: link } = await supabase
+        // Use array query instead of .single()
+        const { data: links, error: linkError } = await supabase
             .from('parent_student')
             .select('*')
             .eq('parent_id', req.user.id)
-            .eq('student_id', req.params.childId)
-            .single();
+            .eq('student_id', req.params.childId);
 
-        if (!link) return res.status(403).json({ message: 'Not authorized' });
+        if (linkError) {
+            console.error('Link check error:', linkError);
+            return res.status(500).json({ message: linkError.message });
+        }
+        if (!links || links.length === 0) return res.status(403).json({ message: 'Not authorized' });
 
+        // Simple query for submissions
         const { data: submissions, error } = await supabase
             .from('submissions')
-            .select('*, assignment:assignments(*, course:courses(title))')
-            .eq('student_id', req.params.childId)
-            .order('submitted_at', { ascending: false });
+            .select('*')
+            .eq('student_id', req.params.childId);
 
-        if (error) return res.status(500).json({ message: error.message });
-
-        const { data: quizSubmissions, error: quizError } = await supabase
-            .from('quiz_submissions')
-            .select('*, quiz:quizzes(*, course:courses(title))')
-            .eq('student_id', req.params.childId)
-            .order('submitted_at', { ascending: false });
-
-        if (quizError) return res.status(500).json({ message: quizError.message });
+        if (error) {
+            console.error('Submissions query error:', error);
+            return res.status(500).json({ message: error.message });
+        }
 
         const formattedAssignments = [];
         
-        (submissions || []).forEach(sub => {
-             const assignment = sub.assignment || {};
-             const course = assignment.course || {};
-             formattedAssignments.push({
-                  id: `assign_${sub.id}`,
-                  title: assignment.title || 'Unknown Assignment',
-                  course_name: course.title || 'Unknown Course',
-                  due_date: assignment.due_date,
-                  status: sub.grade !== null ? 'graded' : 'submitted',
-                  grade: sub.grade,
-                  points: assignment.points || 100,
-                  submitted_at: sub.submitted_at
-             });
-        });
+        if (submissions && submissions.length > 0) {
+            // Fetch assignment details separately
+            const assignmentIds = submissions.map(s => s.assignment_id).filter(Boolean);
+            let assignmentMap = {};
 
-        (quizSubmissions || []).forEach(sub => {
-             const quiz = sub.quiz || {};
-             const course = quiz.course || {};
-             formattedAssignments.push({
-                  id: `quiz_${sub.id}`,
-                  title: quiz.title ? `Quiz: ${quiz.title}` : 'Unknown Quiz',
-                  course_name: course.title || 'Unknown Course',
-                  due_date: null,
-                  status: 'graded',
-                  grade: sub.score,
-                  points: sub.total_marks || 100,
-                  submitted_at: sub.submitted_at
-             });
-        });
+            if (assignmentIds.length > 0) {
+                const { data: assignments } = await supabase
+                    .from('assignments')
+                    .select('*')
+                    .in('id', assignmentIds);
+
+                if (assignments) {
+                    const courseIds = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
+                    let courseMap = {};
+                    if (courseIds.length > 0) {
+                        const { data: courses } = await supabase
+                            .from('courses')
+                            .select('id, title')
+                            .in('id', courseIds);
+                        if (courses) courses.forEach(c => { courseMap[c.id] = c.title; });
+                    }
+                    assignments.forEach(a => {
+                        assignmentMap[a.id] = { ...a, course_title: courseMap[a.course_id] || 'Unknown Course' };
+                    });
+                }
+            }
+
+            submissions.forEach(sub => {
+                const assignment = assignmentMap[sub.assignment_id] || {};
+                formattedAssignments.push({
+                    id: sub.id,
+                    title: assignment.title || 'Unknown Assignment',
+                    course_name: assignment.course_title || 'Unknown Course',
+                    due_date: assignment.due_date,
+                    status: sub.grade !== null && sub.grade !== undefined ? 'graded' : 'submitted',
+                    grade: sub.grade,
+                    points: assignment.points || 100,
+                    submitted_at: sub.submitted_at
+                });
+            });
+        }
+
+        // Try to fetch quiz submissions (gracefully skip if table doesn't exist)
+        try {
+            const { data: quizSubmissions, error: quizError } = await supabase
+                .from('quiz_submissions')
+                .select('*')
+                .eq('student_id', req.params.childId);
+
+            if (!quizError && quizSubmissions && quizSubmissions.length > 0) {
+                const quizIds = quizSubmissions.map(s => s.quiz_id).filter(Boolean);
+                let quizMap = {};
+
+                if (quizIds.length > 0) {
+                    const { data: quizzes } = await supabase
+                        .from('quizzes')
+                        .select('*')
+                        .in('id', quizIds);
+
+                    if (quizzes) {
+                        const courseIds = [...new Set(quizzes.map(q => q.course_id).filter(Boolean))];
+                        let courseMap = {};
+                        if (courseIds.length > 0) {
+                            const { data: courses } = await supabase
+                                .from('courses')
+                                .select('id, title')
+                                .in('id', courseIds);
+                            if (courses) courses.forEach(c => { courseMap[c.id] = c.title; });
+                        }
+                        quizzes.forEach(q => {
+                            quizMap[q.id] = { ...q, course_title: courseMap[q.course_id] || 'Unknown Course' };
+                        });
+                    }
+                }
+
+                quizSubmissions.forEach(sub => {
+                    const quiz = quizMap[sub.quiz_id] || {};
+                    formattedAssignments.push({
+                        id: `quiz_${sub.id}`,
+                        title: quiz.title ? `Quiz: ${quiz.title}` : 'Unknown Quiz',
+                        course_name: quiz.course_title || 'Unknown Course',
+                        due_date: null,
+                        status: 'graded',
+                        grade: sub.score,
+                        points: sub.total_marks || 100,
+                        submitted_at: sub.submitted_at || sub.created_at
+                    });
+                });
+            }
+        } catch (quizErr) {
+            console.log('Quiz submissions not available:', quizErr.message);
+        }
 
         formattedAssignments.sort((a, b) => new Date(b.submitted_at || 0) - new Date(a.submitted_at || 0));
 
