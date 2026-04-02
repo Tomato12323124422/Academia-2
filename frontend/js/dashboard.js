@@ -421,6 +421,7 @@ async function loadInstructorDashboard() {
         loadMyCourses(),
         loadInstructorAnalytics(),
         loadInstructorLiveClasses(),
+        updateScheduleCourseSelect(),
         loadTeacherQuizzes(),
         checkActiveSession()
     ]);
