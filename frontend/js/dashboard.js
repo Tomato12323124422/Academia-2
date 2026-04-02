@@ -741,8 +741,7 @@ async function selectChild(childId, childName) {
         loadGuardianCourses(childId),
         loadGuardianGrades(childId),
         loadGuardianAttendance(childId),
-        loadGuardianAssignments(childId),
-        loadGuardianAchievements(childId)
+        loadGuardianAssignments(childId)
     ]);
 }
 
@@ -922,61 +921,7 @@ async function loadGuardianAssignments(childId) {
     }
 }
 
-async function loadGuardianAchievements(childId) {
-    try {
-        const res = await fetch(`${API}/guardian/child/${childId}/achievements`, {
-            headers: { "Authorization": `Bearer ${token}` }
-        });
-        
-        const data = await res.json();
-        const container = document.getElementById("guardianAchievements");
-        
-        if (res.ok) {
-            const stats = data.stats;
-            
-            container.innerHTML = `
-                <div class="analytics-card" style="margin-bottom: 20px;">
-                    <h4>XP & Level</h4>
-                    <div class="analytics-stats">
-                        <div class="stat">
-                            <span class="stat-value">${stats.xp}</span>
-                            <span class="stat-label">XP</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-value">${stats.level}</span>
-                            <span class="stat-label">Level</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-value">${stats.streak_days}</span>
-                            <span class="stat-label">Day Streak</span>
-                        </div>
-                    </div>
-                </div>
-                <h4 style="margin: 15px 0;">Badges Earned</h4>
-            `;
-            
-            if (data.achievements && data.achievements.length > 0) {
-                container.innerHTML += data.achievements.map(achievement => `
-                    <div class="achievement-badge">
-                        <span class="icon">🏆</span>
-                        <div>
-                            <div class="name">${achievement.name}</div>
-                            <div class="desc">${achievement.description}</div>
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                container.innerHTML += "<p>No badges earned yet.</p>";
-            }
-        } else {
-            container.innerHTML = "<p>No achievements data available.</p>";
-        }
-        
-    } catch (err) {
-        console.error("Error loading achievements:", err);
-        document.getElementById("guardianAchievements").innerHTML = "<p>Error loading achievements.</p>";
-    }
-}
+
 
 function showGuardianDashboard() {
     document.getElementById("welcome").innerText = "Welcome, " + user.full_name;
