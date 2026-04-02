@@ -6,6 +6,12 @@ const ADMIN_API_BASE = window.location.hostname === 'localhost' || window.locati
 
 const API_URL = `${ADMIN_API_BASE}/api`;
 
+function formatDate(dateString) {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? "N/A" : date.toLocaleDateString();
+}
+
 let authToken = localStorage.getItem('token');
 let currentUser = null;
 let allUsers = [];
@@ -507,7 +513,7 @@ async function viewCourse(courseId) {
                             <tr>
                                 <td>${e.student?.full_name || 'Unknown'}</td>
                                 <td>${e.student?.email || 'N/A'}</td>
-                                 <td>${e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : 'N/A'}</td>
+                                 <td>${formatDate(e.enrolled_at)}</td>
                             </tr>
                         `).join('') : '<tr><td colspan="3" class="empty-state">No students enrolled</td></tr>'}
                     </tbody>
@@ -699,7 +705,7 @@ function renderEnrollments(enrollments) {
     }
 
     tbody.innerHTML = enrollments.map(e => {
-        const enrolled = e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : 'N/A';
+        const enrolled = formatDate(e.enrolled_at);
         return `
             <tr>
                 <td><strong>${e.student?.full_name || 'Unknown'}</strong></td>

@@ -8,6 +8,12 @@ const API = `${API_BASE}/api`;
 const user = JSON.parse(localStorage.getItem("user"));
 const token = localStorage.getItem("token");
 
+function formatDate(dateString) {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? "N/A" : date.toLocaleDateString();
+}
+
 if (!user) {
     window.location.href = "login.html";
 }
@@ -1276,7 +1282,7 @@ async function viewCourseStudents(courseId) {
                         <div>
                             <strong>#${index + 1} ${enrollment.student?.full_name || 'Unknown'}</strong>
                             <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">${enrollment.student?.email || 'No email'}</p>
-                            <p style="margin: 5px 0 0 0; color: #888; font-size: 12px;">Enrolled: ${enrollment.enrolled_at ? new Date(enrollment.enrolled_at).toLocaleDateString() : 'N/A'}</p>
+                            <p style="margin: 5px 0 0 0; color: #888; font-size: 12px;">Enrolled: ${formatDate(enrollment.enrolled_at)}</p>
                         </div>
                         <span style="color: #28a745; font-size: 12px;">✓ Enrolled</span>
                     </div>
@@ -1305,7 +1311,7 @@ async function viewCourseSessions(courseId) {
         if (data.sessions && data.sessions.length > 0) {
             sessionsList.innerHTML = data.sessions.map(session => `
                 <div style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 8px;">
-                    <p><strong>Date:</strong> ${new Date(session.date).toLocaleString()}</p>
+                    <p><strong>Date:</strong> ${formatDate(session.date)}</p>
                     <p><strong>Status:</strong> <span style="color: ${session.status === 'active' ? '#28a745' : '#6c757d'}">${session.status}</span></p>
                     ${session.zoom_link ? `<p><strong>Zoom:</strong> <a href="${session.zoom_link}" target="_blank">Join Meeting</a></p>` : ''}
                 </div>
