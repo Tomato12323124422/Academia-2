@@ -44,7 +44,7 @@ app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', message: 'ACADEMIA LMS Backend Running' });
+    res.json({ status: 'OK', message: 'MASENO UNIVERSITY LMS Backend Running' });
 });
 
 // Serve index.html for root route

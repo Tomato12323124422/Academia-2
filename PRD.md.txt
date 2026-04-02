@@ -1,9 +1,9 @@
 PRODUCT REQUIREMENTS DOCUMENT (PRD)
-Project Name: ACADEMIA LMS
+Project Name: MASENO UNIVERSITY LMS
 1. Product Overview
 1.1 Purpose
 
-ACADEMIA LMS is a web-based Learning Management System designed to facilitate course delivery, assessment management, attendance tracking, and academic monitoring. The system supports live virtual classes via Zoom, QR-code-based attendance, and gamification to improve student engagement.
+MASENO UNIVERSITY LMS is a web-based Learning Management System designed to facilitate course delivery, assessment management, attendance tracking, and academic monitoring. The system supports live virtual classes via Zoom, QR-code-based attendance, and gamification to improve student engagement.
 
 1.2 Problem Statement
 

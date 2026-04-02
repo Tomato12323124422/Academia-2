@@ -1,11 +1,11 @@
-// Database Setup Script for ACADEMIA LMS
+// Database Setup Script for MASENO UNIVERSITY LMS
 // Run this to ensure all required tables exist in Supabase
 
 const supabase = require('./utils/db');
 
 async function setupDatabase() {
     console.log('========================================');
-    console.log('ACADEMIA LMS - Database Setup');
+    console.log('MASENO UNIVERSITY LMS - Database Setup');
     console.log('========================================\n');
 
     const setupResults = [];

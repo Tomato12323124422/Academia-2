@@ -25,7 +25,7 @@ function getServerIP() {
 }
 
 // Use Render URL for production, fallback to local for development
-const SERVER_URL = process.env.PUBLIC_URL || 'https://academia-2-xgdr.onrender.com';
+const SERVER_URL = process.env.PUBLIC_URL || 'https://maseno-university-lms.onrender.com';
 
 
 

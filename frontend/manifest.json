@@ -1,6 +1,6 @@
 {
-  "name": "Academia LMS",
-  "short_name": "Academia",
+  "name": "Maseno University LMS",
+  "short_name": "Maseno LMS",
   "description": "LMS with QR attendance, gamification, live classes",
   "scope": "/frontend/",
   "start_url": "/frontend/index.html",

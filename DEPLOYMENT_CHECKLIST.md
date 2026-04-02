@@ -1,4 +1,4 @@
-# 🚀 ACADEMIA LMS Deployment Checklist (Render + Supabase)
+# 🚀 MASENO UNIVERSITY LMS Deployment Checklist (Render + Supabase)
 
 ## ✅ Backend Environment Variables (Render Dashboard → Environment)
 
@@ -43,7 +43,7 @@ curl http://localhost:5000/api/admin/enrollments?test=1
 ### Deployed
 1. Login → F12 → Application → LocalStorage → copy `token`
 2. ```bash
-curl -H "Authorization: Bearer YOUR_TOKEN" https://academia-2-xgdr.onrender.com/api/admin/enrollments
+curl -H "Authorization: Bearer YOUR_TOKEN" https://maseno-university-lms.onrender.com/api/admin/enrollments
 ```
 
 ## ✅ Render Deployment Steps

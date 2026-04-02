@@ -1,5 +1,5 @@
 -- ============================================
--- ACADEMIA LMS - COMPLETE DATABASE SETUP
+-- MASENO UNIVERSITY LMS - COMPLETE DATABASE SETUP
 -- Run this in Supabase SQL Editor
 -- ============================================
 
@@ -353,7 +353,7 @@ CREATE TRIGGER update_courses_updated_at
 INSERT INTO users (full_name, email, password, role, status)
 VALUES (
     'System Administrator',
-    'admin@academia.edu',
+    'admin@maseno.ac.ke',
     '$2b$10$YourHashedPasswordHere',  -- Replace with bcrypt hash
     'admin',
     'active'
@@ -365,7 +365,7 @@ VALUES (
 INSERT INTO users (full_name, email, password, role, status)
 VALUES (
     'John Smith',
-    'teacher@academia.edu',
+    'teacher@maseno.ac.ke',
     '$2b$10$YourHashedPasswordHere',
     'teacher',
     'active'
@@ -377,7 +377,7 @@ VALUES (
 INSERT INTO users (full_name, email, password, role, status)
 VALUES (
     'Jane Doe',
-    'student@academia.edu',
+    'student@maseno.ac.ke',
     '$2b$10$YourHashedPasswordHere',
     'student',
     'active'
@@ -389,7 +389,7 @@ VALUES (
 INSERT INTO users (full_name, email, password, role, status)
 VALUES (
     'Robert Doe',
-    'parent@academia.edu',
+    'parent@maseno.ac.ke',
     '$2b$10$YourHashedPasswordHere',
     'parent',
     'active'
@@ -400,8 +400,8 @@ VALUES (
 /*
 INSERT INTO parent_student (parent_id, student_id, relationship)
 VALUES (
-    (SELECT id FROM users WHERE email = 'parent@academia.edu'),
-    (SELECT id FROM users WHERE email = 'student@academia.edu'),
+    (SELECT id FROM users WHERE email = 'parent@maseno.ac.ke'),
+    (SELECT id FROM users WHERE email = 'student@maseno.ac.ke'),
     'Child'
 );
 */
@@ -413,7 +413,7 @@ INSERT INTO courses (title, description, teacher_id, course_code, max_students, 
 VALUES (
     'Introduction to Computer Science',
     'Learn the fundamentals of computer science and programming',
-    (SELECT id FROM users WHERE email = 'teacher@academia.edu'),
+    (SELECT id FROM users WHERE email = 'teacher@maseno.ac.ke'),
     'CS101',
     50,
     'active'
@@ -424,7 +424,7 @@ VALUES (
 /*
 INSERT INTO enrollments (student_id, course_id, enrolled_at)
 VALUES (
-    (SELECT id FROM users WHERE email = 'student@academia.edu'),
+    (SELECT id FROM users WHERE email = 'student@maseno.ac.ke'),
     (SELECT id FROM courses WHERE course_code = 'CS101'),
     NOW()
 );

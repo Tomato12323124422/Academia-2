@@ -1,5 +1,5 @@
 // PWA Service Worker - Fixed Offline
-const CACHE_NAME = 'academia-pwa-v1';
+const CACHE_NAME = 'maseno-lms-v1';
 const staticAssets = [
   './',
   'index.html',

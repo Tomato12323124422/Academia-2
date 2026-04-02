@@ -1,7 +1,7 @@
 // Use local server for development, or production URL
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:5000' 
-    : 'https://academia-2-xgdr.onrender.com';
+    : 'https://maseno-university-lms.onrender.com';
 
 const API = `${API_BASE}/api`;
 
@@ -70,7 +70,7 @@ async function onScanSuccess(decodedText, decodedResult) {
     }
     
     // Parse QR code data
-    // New format: https://academia-2-xgdr.onrender.com/attendance?session=SESSION_ID&token=TOKEN
+    // New format: https://maseno-university-lms.onrender.com/attendance?session=SESSION_ID&token=TOKEN
 
     let sessionId = null;
     let qrToken = null;
@@ -85,8 +85,8 @@ async function onScanSuccess(decodedText, decodedResult) {
             throw new Error("Invalid QR format");
         }
     } catch (e) {
-        // Try old format as fallback: academia://attendance/SESSION_ID
-        const qrPattern = /^academia:\/\/attendance\/(\d+)$/;
+        // Try old format as fallback: maseno-lms://attendance/SESSION_ID
+        const qrPattern = /^maseno-lms:\/\/attendance\/(\d+)$/;
         const match = decodedText.match(qrPattern);
         
         if (match) {

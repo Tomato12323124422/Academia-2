@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: academia-lms
+    name: maseno-university-lms
     runtime: node
     buildCommand: npm install
     startCommand: npm start
