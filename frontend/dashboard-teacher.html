@@ -22,7 +22,74 @@
             <h2 id="welcome">Dashboard</h2>
             <button onclick="logout()" class="logout">Logout</button>
         </header>
-        <!-- Teacher panels -->
+        
+        <!-- Teacher Analytics Panel -->
+        <div id="instructorAnalyticsPanel" class="panel">
+            <h3>📈 Attendance Analytics</h3>
+            <div id="attendanceAnalytics" class="analytics-grid">
+                <p>Loading analytics...</p>
+            </div>
+        </div>
+
+        <!-- My Courses Panel -->
+        <div id="myCoursesPanel" class="panel">
+            <div class="cards">
+                <div class="card">
+                    <h3>Courses</h3>
+                    <p id="courseCount">0</p>
+                </div>
+            </div>
+            <h3>📚 My Courses</h3>
+            <div id="myCoursesList" class="courses-grid">
+                <p>No courses yet. Create your first course!</p>
+            </div>
+        </div>
+
+        <!-- Attendance List Panel -->
+        <div id="attendanceListPanel" class="panel">
+            <h3>📋 Attendance List</h3>
+            <div id="presentCount" class="count-badge" style="display: inline-block; margin-bottom: 20px;">
+                0 Present
+            </div>
+            <div id="attendanceList" style="max-height: 400px; overflow-y: auto;">
+                <p>No active session. Start a class session to track attendance.</p>
+            </div>
+        </div>
+
+        <!-- Teacher Session/QR Panel -->
+        <div id="teacherSessionPanel" class="panel">
+            <h3>📱 Attendance QR Generator</h3>
+            <div id="noActiveSession">
+                <p>👆 Click "Start Class" on any course to begin a session and generate QR code.</p>
+            </div>
+            <div id="activeSessionInfo" style="display: none;">
+                <div id="qrCodeDisplay">
+                    <img id="qrCodeImage" src="" alt="QR Code" style="max-width: 250px; border: 2px solid #ddd; border-radius: 12px;">
+                    <div id="qrCountdown"></div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button onclick="endSession()" class="logout" style="background: #dc3545;">End Session</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Students Panel -->
+        <div id="courseStudentsPanel" class="panel" style="display: none;">
+            <h3>👨‍🎓 Course Students</h3>
+            <div id="studentsList"></div>
+        </div>
+
+        <!-- Course Sessions Panel -->
+        <div id="courseSessionsPanel" class="panel" style="display: none;">
+            <h3>📅 Course Sessions</h3>
+            <div id="sessionsList"></div>
+        </div>
+
+        <!-- Live Classes Panel (if used) -->
+        <div id="instructorLiveClassesPanel" class="panel" style="display: none;">
+            <h3>📹 Live Classes</h3>
+            <div id="instructorLiveClasses"></div>
+        </div>
     </main>
 </div>
 <script src="js/dashboard.js"></script>
