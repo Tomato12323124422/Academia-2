@@ -50,11 +50,15 @@ function generateToken() {
     return Math.floor(Date.now() / TOKEN_INTERVAL);
 }
 
-// Validate if a token is valid (current or previous interval)
+// Validate if a token is valid (current or up to 5 previous intervals ~3.5 mins leeway)
 function isValidToken(token) {
     const currentToken = generateToken();
     const tokenInt = parseInt(token);
-    return tokenInt === currentToken || tokenInt === currentToken - 1;
+    // Allow current token plus 5 previous intervals for network latency / slow phones
+    for (let i = 0; i <= 5; i++) {
+        if (tokenInt === currentToken - i) return true;
+    }
+    return false;
 }
 
 
@@ -217,7 +221,8 @@ router.get('/sessions/:id/token', authMiddleware, async (req, res) => {
 
 
         const token = generateToken();
-        const qrData = `${SERVER_URL}/api/attendance/scan?session=${req.params.id}&token=${token}`;
+        const baseUrl = getFullURL(req);
+        const qrData = `${baseUrl}/attendance-form.html?session=${req.params.id}&token=${token}`;
 
 
         res.json({ 
