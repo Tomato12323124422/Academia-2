@@ -1,7 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const config = require('./config');
+
+// Load environment variables
+if (!process.env.SUPABASE_URL) {
+    process.env.SUPABASE_URL = config.SUPABASE_URL;
+    process.env.SUPABASE_KEY = config.SUPABASE_KEY;
+    process.env.JWT_SECRET = config.JWT_SECRET;
+}
+
+require('dotenv').config(); // Fallback to .env if present
 
 const authRoutes = require('./routes/auth');
 const coursesRoutes = require('./routes/courses');
@@ -16,7 +25,11 @@ const liveclassesRoutes = require('./routes/liveclasses');
 const app = express();
 app.set('trust proxy', 1); // Trust Render proxy
 
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Debug logs
