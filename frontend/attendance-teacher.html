@@ -234,7 +234,7 @@
         if (!currentSession) return;
         
         try {
-            const res = await fetch(`${API}/attendance/sessions/${currentSession.id}/attendance`, {
+            const res = await fetch(`${API}/attendance/${currentSession.id}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             const data = await res.json();
@@ -256,9 +256,10 @@
         
         list.innerHTML = attendance.map(record => {
             const name = record.student?.full_name || record.name || 'Unknown';
+            const regNo = record.student?.reg_no || record.reg_no || 'N/A';
             const initial = name.charAt(0).toUpperCase();
             const time = new Date(record.marked_at).toLocaleTimeString();
-            return `<div class="attendance-item"><div class="avatar">${initial}</div><div class="info"><div class="name">${name}</div><div class="time">${time}</div></div><div class="status-present">✓ Present</div></div>`;
+            return `<div class="attendance-item"><div class="avatar">${initial}</div><div class="info"><div class="name">${name}</div><div class="reg-no" style="font-size: 12px; color: #555;">Reg No: ${regNo}</div><div class="time">${time}</div></div><div class="status-present">✓ Present</div></div>`;
         }).join('');
     }
     

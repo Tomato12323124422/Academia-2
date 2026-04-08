@@ -376,6 +376,47 @@ const sessionIdInt = parseInt(sessionId);
         res.status(500).json({ message: 'Server error' });
     }
 });
+// GET COURSE SESSIONS (Teacher only)
+router.get('/courses/:course_id/sessions', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'teacher') {
+            return res.status(403).json({ message: 'Only teachers can view sessions' });
+        }
+
+        const courseId = req.params.course_id;
+
+        // Verify teacher owns this course
+        const { data: course, error: courseError } = await supabase
+            .from('courses')
+            .select('*')
+            .eq('id', courseId)
+            .eq('teacher_id', req.user.id);
+
+        if (courseError || !course || course.length === 0) {
+            return res.status(403).json({ message: 'Not authorized for this course' });
+        }
+
+        // Get sessions
+        const { data: sessions, error: sessionsError } = await supabase
+            .from('sessions')
+            .select('*')
+            .eq('course_id', courseId)
+            .order('date', { ascending: false });
+            
+        if (sessionsError) {
+            return res.status(500).json({ message: sessionsError.message });
+        }
+
+        res.json({
+            sessions: sessions || []
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET COURSE ATTENDANCE ANALYTICS (Teacher only)
 router.get('/courses/:course_id/analytics', authMiddleware, async (req, res) => {
     try {
@@ -439,7 +480,7 @@ router.get('/courses/:course_id/analytics', authMiddleware, async (req, res) => 
 });
 
 // GET SESSION ATTENDANCE (Teacher only)
-router.get('/:id', async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     // Get session details
     const { data: session, error: sessionError } = await supabase
@@ -694,7 +735,7 @@ router.post('/scan/mark', async (req, res) => {
             const { data: existing } = await supabase
                 .from('attendance')
                 .select('*')
-                .eq('session_id', session_id)
+                .eq('session_id', sessionIdInt)
                 .eq('reg_no', regNo);
             
             if (existing && existing.length > 0) {
@@ -705,7 +746,7 @@ router.post('/scan/mark', async (req, res) => {
             const { data, error } = await supabase
                 .from('attendance')
                 .insert([{
-                    session_id,
+                    session_id: sessionIdInt,
                     name: name,
                     reg_no: regNo,
                     status: 'present',
