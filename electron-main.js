@@ -15,9 +15,12 @@ function createWindow() {
         }
     });
 
-    // In production, we might want to point it to the Render URL
-    // For now, let's point it to the local index.html or the localhost
-    if (isDev) {
+    // Use RENDER_URL if provided, else localhost (dev), else local file
+    const remoteUrl = process.env.RENDER_URL || 'https://academia-2-xgdr.onrender.com';
+    
+    if (process.env.USE_REMOTE === 'true') {
+        mainWindow.loadURL(remoteUrl);
+    } else if (isDev) {
         mainWindow.loadURL('http://localhost:5000');
     } else {
         mainWindow.loadFile(path.join(__dirname, 'frontend/index.html'));

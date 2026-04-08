@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node backend/index.js",
     "desktop": "electron .",
+    "desktop-remote": "set USE_REMOTE=true && electron .",
     "dev-desktop": "concurrently \"npm start\" \"wait-on http://localhost:5000 && electron .\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
