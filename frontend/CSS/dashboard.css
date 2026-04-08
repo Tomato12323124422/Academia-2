@@ -519,3 +519,107 @@ body{
     gap: 10px;
 }
 
+/* ===== RESPONSIVE MEDIA QUERIES ===== */
+@media (max-width: 768px) {
+    .dashboard {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        padding: 15px;
+        position: relative;
+        z-index: 10;
+    }
+
+    .logo-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+        text-align: left;
+    }
+
+    .logo {
+        width: 40px;
+    }
+
+    .logo-box h3 {
+        font-size: 16px;
+    }
+
+    .sidebar ul {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        gap: 10px;
+        padding-bottom: 5px;
+        -ms-overflow-style: none; /* IE styling */
+        scrollbar-width: none; /* Firefox */
+    }
+
+    .sidebar ul::-webkit-scrollbar {
+        display: none;
+    }
+
+    .sidebar li {
+        margin: 0;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.1);
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .main {
+        padding: 15px;
+    }
+
+    .cards,
+    .courses-grid,
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .logout {
+        align-self: flex-end;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+        padding: 15px;
+    }
+
+    .deadline-item,
+    .live-class-item,
+    .session-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .deadline-date,
+    .deadline-item > div:last-child {
+        text-align: left;
+        width: 100%;
+    }
+
+    .leaderboard-table,
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        width: 100%;
+    }
+
+    .analytics-stats {
+        grid-template-columns: 1fr;
+    }
+}
+

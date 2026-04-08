@@ -221,7 +221,8 @@ router.post('/:id/enroll', authMiddleware, async (req, res) => {
             .from('enrollments')
             .insert([{
                 course_id: req.params.id,
-                student_id: req.user.id
+                student_id: req.user.id,
+                enrolled_at: new Date().toISOString()
             }]);
 
 
@@ -357,7 +358,8 @@ router.post('/enroll-by-code', authMiddleware, async (req, res) => {
             .from('enrollments')
             .insert([{
                 course_id: courseData.id,
-                student_id: req.user.id
+                student_id: req.user.id,
+                enrolled_at: new Date().toISOString()
             }]);
 
 
