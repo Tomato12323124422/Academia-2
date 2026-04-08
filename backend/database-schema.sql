@@ -32,4 +32,5 @@ ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 
 -- Sessions policies
-CREATE POLICY "Teachers can manage their sessions" ON sessions FOR ALL USING (teacher_id
+CREATE POLICY "Teachers can manage their sessions" ON sessions FOR ALL USING (teacher_id = auth.uid());
+CREATE POLICY "Students can view active sessions" ON sessions FOR SELECT USING (status = 'active');

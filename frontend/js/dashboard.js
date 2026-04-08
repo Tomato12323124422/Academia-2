@@ -1181,6 +1181,12 @@ function updateCountdown(expiresIn) {
     countdownDiv.innerHTML = `⏱️ QR refreshes in <strong>${seconds}s</strong>`;
     
     let remaining = expiresIn;
+    
+    // Clear any existing countdown interval on this element
+    if (countdownElement.dataset.intervalId) {
+        clearInterval(parseInt(countdownElement.dataset.intervalId));
+    }
+    
     const countdownInterval = setInterval(() => {
         remaining -= 1000;
         if (remaining <= 0) {
@@ -1190,20 +1196,27 @@ function updateCountdown(expiresIn) {
             countdownDiv.innerHTML = `⏱️ QR refreshes in <strong>${secs}s</strong>`;
         }
     }, 1000);
+    
+    // Store interval ID on the element
+    countdownDiv.dataset.intervalId = countdownInterval;
 }
 
 async function refreshAttendance() {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+        console.warn("No active session ID for attendance refresh");
+        return;
+    }
     
     try {
-        const res = await fetch(`${API}/attendance/sessions/${currentSessionId}/attendance`, {
+        const res = await fetch(`${API}/attendance/${currentSessionId}`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
         
         const data = await res.json();
         
         if (res.ok) {
-            document.getElementById("presentCount").innerText = data.count || 0;
+            const presentCount = document.getElementById("presentCount");
+            if (presentCount) presentCount.innerText = data.present_count || 0;
             
             const attendanceList = document.getElementById("attendanceList");
             if (data.attendance && data.attendance.length > 0) {
@@ -1226,7 +1239,10 @@ async function refreshAttendance() {
 }
 
 async function endSession() {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+        alert("No active session found to end.");
+        return;
+    }
     
     if (!confirm("Are you sure you want to end this session?")) return;
     

@@ -479,55 +479,7 @@ router.get('/courses/:course_id/analytics', authMiddleware, async (req, res) => 
     }
 });
 
-// GET SESSION ATTENDANCE (Teacher only)
-router.get('/:id', authMiddleware, async (req, res) => {
-  try {
-    // Get session details
-    const { data: session, error: sessionError } = await supabase
-      .from('sessions')
-      .select('*')
-      .eq('id', req.params.id);
 
-    if (sessionError || !session || session.length === 0) {
-      return res.status(404).json({ message: 'Session not found' });
-    }
-
-    // Only teacher who created the session or admin can view attendance
-    if (session[0].teacher_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-
-    // Get attendance records
-    const { data: attendance, error } = await supabase
-      .from('attendance')
-      .select(`
-        *,
-        student:users(id, full_name, email, reg_no)
-      `)
-      .eq('session_id', req.params.id)
-      .order('marked_at', { ascending: false });
-
-    if (error) {
-      return res.status(500).json({ message: error.message });
-    }
-
-    // ✅ Added: return count of present students
-    const presentCount = attendance
-      ? attendance.filter(a => a.status === 'present').length
-      : 0;
-
-    res.json({
-      session: session[0],
-      attendance: attendance || [],
-      total_count: attendance ? attendance.length : 0,
-      present_count: presentCount,
-      absent_count: attendance ? attendance.length - presentCount : 0
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 // END SESSION (Teacher only)
 router.patch('/sessions/:id/end', authMiddleware, async (req, res) => {
     try {
@@ -764,6 +716,58 @@ router.post('/scan/mark', async (req, res) => {
         console.error(err);
         res.status(500).json({ message: 'Server error' });
     }
+});
+
+
+// GET SESSION ATTENDANCE (Teacher only)
+// Moved to bottom to prevent swallowing more specific routes like /my-attendance
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    // Get session details
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('id', req.params.id);
+
+    if (sessionError || !session || session.length === 0) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    // Only teacher who created the session or admin can view attendance
+    if (session[0].teacher_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Get attendance records
+    const { data: attendance, error } = await supabase
+      .from('attendance')
+      .select(`
+        *,
+        student:users(id, full_name, email)
+      `)
+      .eq('session_id', req.params.id)
+      .order('marked_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ message: error.message });
+    }
+
+    // return count of present students
+    const presentCount = attendance
+      ? attendance.filter(a => a.status === 'present').length
+      : 0;
+
+    res.json({
+      session: session[0],
+      attendance: attendance || [],
+      total_count: attendance ? attendance.length : 0,
+      present_count: presentCount,
+      absent_count: attendance ? attendance.length - presentCount : 0
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 module.exports = router;
