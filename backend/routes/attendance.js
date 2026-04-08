@@ -376,6 +376,68 @@ const sessionIdInt = parseInt(sessionId);
         res.status(500).json({ message: 'Server error' });
     }
 });
+// GET COURSE ATTENDANCE ANALYTICS (Teacher only)
+router.get('/courses/:course_id/analytics', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'teacher') {
+            return res.status(403).json({ message: 'Only teachers can view analytics' });
+        }
+
+        const courseId = req.params.course_id;
+
+        // Verify teacher owns this course
+        const { data: course, error: courseError } = await supabase
+            .from('courses')
+            .select('*')
+            .eq('id', courseId)
+            .eq('teacher_id', req.user.id);
+
+        if (courseError || !course || course.length === 0) {
+            return res.status(403).json({ message: 'Not authorized for this course' });
+        }
+
+        // Get total students
+        const { count: totalStudents, error: enrollError } = await supabase
+            .from('enrollments')
+            .select('*', { count: 'exact', head: true })
+            .eq('course_id', courseId);
+            
+        // Get sessions
+        const { data: sessions, error: sessionsError } = await supabase
+            .from('sessions')
+            .select('id')
+            .eq('course_id', courseId);
+            
+        const totalSessions = sessions ? sessions.length : 0;
+        let attendanceRate = 0;
+
+        if (totalSessions > 0 && totalStudents > 0) {
+            const sessionIds = sessions.map(s => s.id);
+            const { count: presentCount, error: attError } = await supabase
+                .from('attendance')
+                .select('*', { count: 'exact', head: true })
+                .in('session_id', sessionIds)
+                .eq('status', 'present');
+                
+            if (!attError) {
+                attendanceRate = Math.round((presentCount / (totalSessions * totalStudents)) * 100);
+            }
+        }
+
+        res.json({
+            analytics: {
+                total_sessions: totalSessions,
+                attendance_rate: attendanceRate,
+                total_students: totalStudents || 0
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET SESSION ATTENDANCE (Teacher only)
 router.get('/:id', async (req, res) => {
   try {
