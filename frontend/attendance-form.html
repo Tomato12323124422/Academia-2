@@ -291,8 +291,8 @@
             showForm();
             
         } catch (err) {
-            console.error(err);
-            showError("Network error. Please check your connection and try again.");
+            console.error("Initialization error:", err);
+            showError("Connection error: " + err.message + ". Make sure you are scanning the QR code from the live website.");
         }
     }
     
